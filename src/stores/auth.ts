@@ -18,6 +18,7 @@ export const useAuthStore = defineStore('auth', () => {
   const username = ref('')
   const schulnummer = ref('')
   const schulformKuerzel = ref('')
+  const idSchuljahresabschnitt = ref(0)
   const _connected = ref(false)
   const _offline = ref(false)
 
@@ -32,6 +33,7 @@ export const useAuthStore = defineStore('auth', () => {
       const stammdaten = await loadSchulstammdaten()
       schulnummer.value = stammdaten.schulnummer
       schulformKuerzel.value = stammdaten.schulform
+      idSchuljahresabschnitt.value = stammdaten.idSchuljahresabschnitt
     } catch (e) {
       destroyApiClient()
       throw e
@@ -55,12 +57,13 @@ export const useAuthStore = defineStore('auth', () => {
     username.value = ''
     schulnummer.value = ''
     schulformKuerzel.value = ''
+    idSchuljahresabschnitt.value = 0
     _connected.value = false
     _offline.value = false
   }
 
   return {
-    baseUrl, schema, username, schulnummer, schulformKuerzel,
+    baseUrl, schema, username, schulnummer, schulformKuerzel, idSchuljahresabschnitt,
     isConnected, isOffline, isReady,
     connect, arbeitenOhneVerbindung, disconnect,
   }

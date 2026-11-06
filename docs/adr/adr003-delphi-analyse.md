@@ -26,7 +26,7 @@ Aus den PDF-Vorlagen wurden Formularfelder (Name, Position, Maximallänge) und s
 
 **Grenzen der Analyse**
 - Die gemeinsam genutzten Units (`..\Shared\BaseUtils2`, `CTVBase2`, `SchILDDBUtils`, `mSchILDZugriffIntBen`, `mauswahl`, …) liegen **nicht** vor. Ihr Verhalten (z. B. `GetDelimiter`, `Mixed`, `RealVal`, `NBetween`, `FuellAufAlignmC`, `GetSchILDDicLehrer`) wurde aus dem Aufruf abgeleitet. Solche Stellen sind unten mit *(angenommen)* gekennzeichnet.
-- Die SQL-Abfragen, mit denen `GetSchILDDicLehrer` die Lehrkraftdaten aus SchILD liest, sind nicht einsehbar. Das ist für das neue Tool unerheblich, weil die Daten aus der SVWS-API kommen (ADR 001 E4), die benötigten Felder sind aber festgehalten.
+- Die in `MA2.dpr` genannte Unit `..\Shared\SchILDDBUtils.pas` liegt nicht im Ordner `SP_FP\Shared`. Die Funktion `GetSchILDDicLehrer` wurde in der Schwesterfassung `Delphi-Module\GPCIO\shared\SchILDDBUtils.pas` gefunden und ausgewertet (Abschnitt 4.10). Dass MA2 genau diese Fassung einbindet, ist nicht belegt, die Abfrage ist aber dieselbe wie in `SP_FP\Shared\SchILD2\SchILD2DataUtils.pas`.
 - `MA2.dfm`-Layouts wurden nicht Pixel für Pixel ausgewertet. Die Oberfläche richtet sich nach ADR 002.
 - Das Dokument `divi/Ausfüllhilfe_zur_LBV(A)14_Änderungsmitteilung.pdf` enthält inhaltlich die Ausfüllhilfe zur *Arbeitsbescheinigung* (Bundesagentur für Arbeit) und **nicht** zur Änderungsmitteilung. Sie ist als Quelle für die LBV-Regeln unbrauchbar; die aktuelle Ausfüllanleitung des LBV muss separat beschafft werden (siehe Offene Fragen).
 
@@ -96,9 +96,9 @@ Die Spalten werden im Code über ihre Kopfzeile gefunden (`BestimmeSpalten`), ni
 
 Dienststelle (mehrzeilig, Zeilen durch `~` getrennt), Aktenzeichen, Bearbeiter, Telefon, Nebenstelle, PLZ/Ort, E-Mail, Schulnummer, Schulform (nur LAA), Anzahl Minuten je Unterrichtsstunde, Schalter „keine Mehrarbeit an weiterer Schule“ (Standard **wahr**), „Sachlich richtig“, „Unterschrift“.
 
-### 3.4 Lehrkraftdaten aus SchILD (`tLehrer`, angenommen aus der Verwendung)
+### 3.4 Lehrkraftdaten aus SchILD (`tLehrer`)
 
-Kürzel, Nachname, Vorname, Geburtsdatum, `LBVNummer`, `VSchluessel`, `Rechtsverhaeltnis` (`W` = Lehramtsanwärter/Referendar), `Beschaeftigungsart` (`V`/`T`). Die Lehrkraftliste kommt aus einem Dictionary, das beim Öffnen der SchILD-Datenbank gefüllt wird (`GetSchILDDicLehrer`).
+Kürzel, Nachname, Vorname, Geburtsdatum, `LBVNummer`, `VSchluessel`, `Rechtsverhaeltnis` (`W` = Lehramtsanwärter/Referendar), `Beschaeftigungsart` (`V`/`T`). Die Lehrkraftliste kommt aus einem Dictionary, das beim Öffnen der SchILD-Datenbank gefüllt wird (`GetSchILDDicLehrer`). Herkunft und Ersatz durch die SVWS-API: Abschnitt 4.10.
 
 ## 4. Fachlogik
 
@@ -284,6 +284,76 @@ Folge: Delphi lehnt vor dem Export Nummern wie `A…`, `F…`, `K…` ab, die da
 `GetCStunden` formt die Stunden zu **fünf Ziffern** (drei vor, zwei nach dem Komma): Vorkommastellen links auf drei Stellen aufgefüllt, Nachkommastellen bei mehr als zwei Stellen **abgeschnitten (nicht gerundet)**, bei einer Stelle mit `0` ergänzt. Bei Lohnart `5004` (und `5007`) werden die Nachkommastellen auf `00` gesetzt, d. h. **Nachkommastellen gehen verloren**. Beispiel: `2,5` mit Lohnart `5004` → `00200`; mit `5006` → `00250`.
 
 Das PDF prüft dieselbe Regel („Lohnart 5004 ist nur zulässig mit Nachkommastellen ‚00‘“), erlaubt nur `5004` und `5006` (`5005` ist ausdrücklich nicht mehr zulässig) und begrenzt die Stunden auf 000,00–180,00.
+
+### 4.10 Lehrkraft-Import aus SchILD und Ersatz durch die SVWS-API
+
+Das alte MA2 arbeitet mit **SchILD-NRW 2** (Access-Datenbank `.mdb`, `.udl`-Verknüpfung oder SchILDzentral). Den SVWS-Server und SchILD-NRW 3 gab es damals nicht. Die Aktion „Lehrkräfte aus SchILD übernehmen“ (`Action_SchILDImport` in `mMA2Main.pas`) funktioniert so:
+
+**1. Datenbank öffnen** (`TDMMA2.OpenDBSchild`): Zugriffsart MDB, UDL oder SchILDzentral aus den Einstellungen (`mSchILDZugriff`); für MDB/UDL müssen Dateiname und Zugang stimmen. Danach liest MA2 zwei Dinge:
+- `GetSchILDEigeneSchule`: Tabelle `EigeneSchule` (Schuldaten, u. a. Schulnummer).
+- `GetSchILDDicLehrer`: Lehrkräfte in ein Dictionary `ID → tLehrer`.
+
+**2. Lehrkräfte lesen** (`GetSchILDDicLehrer`, Standard `NurSichtbare = True`):
+
+```sql
+SELECT * FROM K_Lehrer WHERE sichtbar ORDER BY Sortierung
+```
+
+Je Datensatz übernimmt `GetdicLehrer` u. a. `ID`, `Kuerzel`, `Nachname`, `Vorname`, `Geburtsdatum` (Text), `Rechtsverhaeltnis`, `Beschaeftigungsart`, `Einsatzstatus`, `PersonTyp`, `Statistik`, `Amtsbezeichnung`, `EMailDienstlich` und, **falls die Spalten vorhanden sind**, `LBVNr` und `VSchluessel` (`FindField(...) <> Nil`). `Sichtbar` gilt bei dem Wert `+`. Es gibt **keinen** Filter auf `PersonTyp`; angezeigt werden alle sichtbaren Personen.
+
+**3. Auswahl durch die Nutzerin oder den Nutzer** (`AusWaehlen2`): Mehrfachauswahlliste mit den Spalten `Kürzel; Name; Vorname; Sta.; LBV-Nummer; B.-Art; VS.`; `Sta.` ist das Rechtsverhältnis. Die Liste ist nach Kürzel sortiert.
+
+**4. Übernahme in die Tabelle** (je gewählte Lehrkraft):
+- Bereits vorhandene Zeilen werden übersprungen, wenn **Nachname, Vorname und Geburtsdatum** übereinstimmen (`LKBereitsAufgenommen`).
+- Neue Zeile mit `Langname` = Nachname, `Vorname`, `Geb.-Dat.`, `LBV.-Nr.` = `LBVNummer`, `V.-Schl.` = `VSchluessel`.
+- **Status** = `W`, wenn das Rechtsverhältnis `W` ist (Lehramtsanwärter), sonst die **Beschäftigungsart** (`V` Vollzeit, `T` Teilzeit, …).
+- Stunden und Merkmale aller sechs Monate bleiben **leer**; sie trägt die Anwenderin oder der Anwender von Hand ein. Die Zeile ist markiert, Hinweise sind leer.
+- Danach wird nach Name sortiert und neu durchnummeriert. Die SchILD-Verbindung wird geschlossen.
+
+**5. Rechte:** Der Import setzt voraus, dass der Benutzer Administrator ist oder lesend auf Lehrkraftdaten zugreifen darf (Hinweis in der Anleitung ab Version 3.2). Wird `MSP.OhneSchILDZugriff` gesetzt, fehlt die Aktion ganz. Findet MA2 keine Lehrkräfte, erscheint „Keine Lehrkraftdaten gefunden! Schulnummer: …“.
+
+MA2 übernimmt **nur Stammdaten**. Mehrarbeitsstunden liefert SchILD nicht.
+
+#### Ersatz durch die SVWS-API (an einer laufenden Instanz geprüft)
+
+Geprüft am SVWS-Server-Quelltext (`APILehrer`, `LehrerPersonaldaten`, `LehrerPersonalabschnittsdaten`) und an einer lokalen Entwicklungsinstanz. Der Aufbau unterscheidet sich von SchILD 2: Rechtsverhältnis und Beschäftigungsart stehen nicht mehr an der Lehrkraft, sondern **je Schuljahresabschnitt als Katalog-ID**.
+
+| Delphi (`K_Lehrer`) | SVWS | Endpunkt (`/db/{schema}`) |
+|---|---|---|
+| Liste, `sichtbar` | `LehrerListeEintrag.istSichtbar`, zusätzlich `personTyp` (`LEHRKRAFT`) | `GET /lehrer` |
+| `Nachname`, `Vorname`, `Geburtsdatum` | `LehrerStammdaten.nachname/vorname/geburtsdatum` (**ISO** `JJJJ-MM-TT`, SchILD 2: `TT.MM.JJJJ`) | `POST /lehrer/stammdaten` mit Liste der Lehrer-IDs |
+| `LBVNr` | `LehrerPersonaldaten.lbvPersonalnummer` | `GET /lehrer/{id}/personaldaten` (nur einzeln abrufbar) |
+| `VSchluessel` | `LehrerPersonaldaten.lbvVerguetungsschluessel` | wie oben |
+| `Rechtsverhaeltnis` (`W`) | `LehrerPersonalabschnittsdaten.idRechtsverhaeltnis` → Katalog | in `personaldaten.abschnittsdaten[]`, Eintrag mit `idSchuljahresabschnitt` des gewünschten Abschnitts |
+| `Beschaeftigungsart` (`V`/`T`) | `LehrerPersonalabschnittsdaten.idBeschaeftigungsart` → Katalog | wie oben |
+| `EigeneSchule.Schulnummer` | `schulNr` (Zahl) und `idSchuljahresabschnitt` | `GET /schule/stammdaten` |
+| Schlüsseltabellen | Kataloge `LehrerRechtsverhaeltnis` und `LehrerBeschaeftigungsart` | `GET /types/<Name>.json` (ohne Schema-Präfix, Wurzel des Servers) |
+
+Die Kataloge liefern `daten[].historie[]` mit `id` und `schluessel`. Aktueller Stand (live bestätigt und identisch zum Quelltext):
+
+| Rechtsverhältnis | |
+|---|---|
+| `L` Beamte auf Lebenszeit, `P` auf Probe, `A` zur Anstellung (bis 2009), `N` nebenamtlich, **`W` Beamte auf Widerruf (LAA)** | `U` Angestellte unbefristet (TVL), `B` befristet (TVL), `J` nicht TVL, `S` Gestellungsvertrag, `X` unentgeltlich |
+
+| Beschäftigungsart | |
+|---|---|
+| `V` Vollzeit, `T` Teilzeit, `AT` Altersteilzeit (Beschäftigungsphase), `TA` / `VA` Altersteilzeit (Verzichtsphase), `TS` Blockmodell | `SB` Angestellte nebenberuflich, `GB` geringfügig, `ST` Studierende (bis 2023), `NA` Beamte nebenamtlich, `G` Gestellung, `X` unentgeltlich, **`WT` / `WV` LAA in Teil-/Vollzeit** |
+
+**Ergebnis der Prüfung an der Entwicklungsinstanz (98 sichtbare Lehrkräfte, alle `LEHRKRAFT`):**
+- Alle Endpunkte antworten wie beschrieben; 98 Einzelabfragen der Personaldaten dauern etwa 0,8 s.
+- **Die LBV-Nummer und der Vergütungsschlüssel sind dort bei keiner Lehrkraft gepflegt, Rechtsverhältnis und Beschäftigungsart im aktuellen Abschnitt bei keiner.** Ob das an der Testdatenbank oder an der Pflege in der Praxis liegt, ist offen. Das Tool muss damit umgehen: leere Felder bleiben leer, der Anwender ergänzt sie in der Tabelle, und ein Hinweis nennt die fehlenden Daten (`datenHinweise`).
+- `POST /lehrer/personalabschnittsdaten/multiple` erwartet die IDs der *Abschnittsdaten*, nicht der Lehrkräfte, und wird deshalb nicht verwendet; die Abschnittsdaten stecken ohnehin in den Personaldaten.
+
+**Entscheidungen für die Umsetzung (`services/svwsService.ts`, `services/lehrkraftMapper.ts`):**
+1. **Filter:** `istSichtbar` **und** `personTyp = LEHRKRAFT`. MA2 filterte nur auf sichtbar; Mehrarbeit gibt es nur für Lehrkräfte.
+2. **Abschnitt:** Rechtsverhältnis und Beschäftigungsart stammen aus dem **aktuellen Schuljahresabschnitt der Schule** (`idSchuljahresabschnitt` der Schulstammdaten). Liegt der Abrechnungszeitraum in einem anderen Abschnitt, kann sich der Status ändern (Offene Frage 11).
+3. **Status:** wie in MA2 `W` bei Lehramtsanwärtern, sonst die Beschäftigungsart. Zusätzlich gelten die SVWS-Arten `WT` und `WV` als `W`. Bei leerer Beschäftigungsart gilt Vollzeit (wie in MA2, Abschnitt 4.2).
+4. **Geburtsdatum** wird von ISO in `TT.MM.JJJJ` umgewandelt, damit die Prüfung und die Duplikatsuche wie in MA2 funktionieren.
+5. **Duplikate:** gleiche Kombination aus Nachname, Vorname und Geburtsdatum wird nicht erneut aufgenommen (wie `LKBereitsAufgenommen`).
+6. **Stunden und Merkmale** bleiben leer, wie in MA2.
+7. Die Abfragen laufen mit begrenzter Parallelität (8), die Stammdaten in einer Sammelabfrage.
+
+> **Beachten:** Die Statusauswertung per Teilstring (Abschnitt 4.2) wirkt mit den SVWS-Beschäftigungsarten anders als mit den SchILD-2-Werten. `T` kommt auch in `AT`, `TA`, `TS`, `WT` und `ST` vor (gilt als Teilzeit), `VA` und `WV` enthalten `V` (Vollzeit), `SB`, `GB`, `NA`, `G`, `X` gelten als Vollzeit. Ob `SB` (nebenberuflich) und `GB` (geringfügig) fachlich Vollzeit sein dürfen und ob `ST` (Studierende) Teilzeit sein soll, ist fachlich zu klären (Offene Frage 12).
 
 ## 5. PDF-Vorlagen des LBV
 
@@ -479,7 +549,7 @@ SchILD-Datenbankzugriff (MDB, UDL, SchILDzentral, `schildintern.mdb`), MA2-Benut
 | # | Frage | Wer |
 |---|---|---|
 | 1 | Aktuelle Ausfüllanleitung der Änderungsmitteilung und aktuelle Formularversion (LBV(A/Bes)23_2019_02 noch gültig?) beschaffen. Die im Projekt liegende „Ausfüllhilfe“ ist eine andere Anleitung | Fachlich / LBV |
-| 2 | Liefert der SVWS-Server LBV-Nummer, Vergütungsschlüssel, Rechtsverhältnis, Beschäftigungsart? Endpunkte prüfen (ADR 001, Offene Frage 1) | Entwicklung |
+| 2 | **Beantwortet:** Der SVWS-Server liefert alle Felder (Abschnitt 4.10). In der geprüften Testdatenbank sind sie aber nicht gepflegt. Wie vollständig sind sie in echten Schul-Datenbanken? | Fachlich / Pilotschule |
 | 3 | Stunden in Abschnitt A: Bankers Rounding wie Delphi oder kaufmännisch runden? Erwartung: Das LBV erwartet ganze Stunden, die Rundung sollte dokumentiert sein | Fachlich |
 | 4 | Welche Anfangsbuchstaben der Personalnummer sind gültig? Vorschlag: Die Menge des jeweiligen Formulars (4.8) und beide Prüfziffer-Verfahren zulassen | Fachlich / LBV |
 | 5 | Gilt eine Obergrenze für Stunden je Monat in Abschnitt A (Delphi: 288, Kommentar im PDF: 24)? | Fachlich / LBV |
@@ -488,12 +558,14 @@ SchILD-Datenbankzugriff (MDB, UDL, SchILDzentral, `schildintern.mdb`), MA2-Benut
 | 8 | Darf die LBV-Vorlage im öffentlichen Repository verteilt werden (ADR 001, Offene Frage 2)? | Projektleitung |
 | 9 | Unterstützt das neue Tool Abschlagszeilen (Kennzahl 2989 / 2E)? Im alten Programm nicht vorhanden, daher vorerst Nein | Fachlich |
 | 10 | Sollen Namen wie im alten Programm in „gemischter Schreibweise“ ausgegeben werden? Regeln von `Mixed` klären | Fachlich |
+| 11 | Aus welchem Schuljahresabschnitt soll der Status (Vollzeit/Teilzeit, LAA) stammen, wenn der Abrechnungszeitraum nicht im aktuellen Abschnitt liegt? Vorschlag: Abschnitt des letzten Abrechnungsmonats | Fachlich |
+| 12 | Wie sind die SVWS-Beschäftigungsarten `SB`, `GB`, `ST`, `NA`, `G`, `X` sowie `AT`, `TA`, `VA`, `TS` bezüglich Voll-/Teilzeit und Abschnitt A/C zu behandeln? Die Teilstring-Regel aus MA2 passt nicht sicher | Fachlich / LBV |
 
 ## Nächste Schritte
 
 1. Projektgerüst nach ADR 001 anlegen (Struktur, `package.json`, Vite-Konfiguration, Electron, Skripte, `style.css`, Footer).
 2. `rules/` mit Tests umsetzen: Personalnummer, Zuordnung, Merkmal, Prüfung, Formularwerte (mit den Beispieldaten und den Prüfziffer-Fällen aus 4.8).
 3. CSV-Import (beide Formate, Windows-1252, Trennzeichen) und PDF-Export (`pdf-lib`, Feldwerte über Golden-File-Test).
-4. SVWS-Anbindung für Lehrkräfte nach Klärung von Offene Frage 2.
+4. SVWS-Anbindung für Lehrkräfte (umgesetzt: `loadLehrkraefte`), Anbindung an die Oberfläche (Dialog „Lehrkräfte aus SVWS“) offen.
 5. Oberfläche nach ADR 002, danach Handbuch (`docs/`) und Aufnahme in SVWS-Tools.
 6. Fachabnahme der Abweichungen aus 5.5 und 7 mit einer Ansprechperson (SVWS-Projekt / LBV) vor dem ersten Release.

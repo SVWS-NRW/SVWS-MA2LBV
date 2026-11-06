@@ -4,12 +4,15 @@ type ThemePreference = 'light' | 'dark' | 'system'
 
 const STORAGE_KEY = 'dark-mode'
 const preference = ref<ThemePreference>('system')
+/** Aktuell wirksames Theme (für AG Grid: ag-theme-quartz / -dark) */
+const isDark = ref(false)
 
 function applyTheme(pref: ThemePreference): void {
-  const isDark =
+  const dunkel =
     pref === 'dark' ||
     (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-  document.documentElement.classList.toggle('dark', isDark)
+  document.documentElement.classList.toggle('dark', dunkel)
+  isDark.value = dunkel
 }
 
 export function initTheme(): void {
@@ -30,6 +33,7 @@ export function initTheme(): void {
 export function useTheme() {
   return {
     preference,
+    isDark,
     setTheme(pref: ThemePreference) {
       preference.value = pref
     },

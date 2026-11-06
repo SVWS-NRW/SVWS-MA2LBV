@@ -87,7 +87,9 @@ Das alte MA2 las Lehrkraftdaten direkt aus der SchILD-Datenbank (MDB, UDL oder S
 
 **Benötigte Daten je Lehrkraft** (Entsprechung zu `tLehrer` im Delphi-Code): Kürzel, Nachname, Vorname, Geburtsdatum, LBV-Personalnummer, Vergütungsschlüssel (1–4), Rechtsverhältnis (Lehramtsanwärter = `W`), Beschäftigungsart (`V` Vollzeit / `T` Teilzeit). Zusätzlich die Schulnummer der eigenen Schule zur Vorbelegung der Einstellungen.
 
-> **Ungeprüft:** Welche Endpunkte und Felder des SVWS-Servers diese Werte liefern (`/lehrer`, `/lehrer/{id}`, Personaldaten, `/schule/stammdaten`), ist noch nicht gegen die OpenAPI-Beschreibung des Zielservers verifiziert. Die Felder für LBV-Nummer, Vergütungsschlüssel, Rechtsverhältnis und Beschäftigungsart sind der erste Prüfpunkt bei der Umsetzung (siehe Offene Fragen).
+**Geprüft (2026-11-06, Quelltext des SVWS-Servers und lokale Entwicklungsinstanz):** Die Daten stehen in `GET /lehrer`, `POST /lehrer/stammdaten`, `GET /lehrer/{id}/personaldaten` (LBV-Nummer, Vergütungsschlüssel und Abschnittsdaten mit Katalog-IDs für Rechtsverhältnis und Beschäftigungsart), den Katalogen `GET /types/LehrerRechtsverhaeltnis.json` und `…/LehrerBeschaeftigungsart.json` sowie `GET /schule/stammdaten` (`schulNr`, `idSchuljahresabschnitt`). Das Mapping und die Unterschiede zu SchILD-NRW 2 beschreibt [ADR 003, Abschnitt 4.10](adr003-delphi-analyse.md). Umgesetzt in `services/svwsService.ts` und `services/lehrkraftMapper.ts`.
+
+> **Datenlage:** In der geprüften Testdatenbank sind LBV-Nummer und Vergütungsschlüssel bei keiner Lehrkraft gepflegt. Das Tool muss mit leeren Feldern umgehen (Eingabe in der Tabelle, Hinweis auf fehlende Daten).
 
 **Funktionen ohne SVWS-Anbindung bleiben nutzbar:** CSV-Import und manuelle Erfassung funktionieren auch ohne Verbindung. Der Verbindungsdialog darf deshalb übersprungen werden („Ohne SVWS-Verbindung arbeiten“). Das entspricht dem Delphi-Modus `OhneSchILDZugriff`. Die Route-Guards unterscheiden `requiresAuth` (nur SVWS-Import der Lehrkräfte) von frei zugänglichen Ansichten.
 
@@ -254,7 +256,7 @@ Der Delphi-Code ist proprietär und liegt außerhalb dieses Repositorys (`/home/
 
 | # | Frage | Wirkt auf |
 |---|---|---|
-| 1 | Welche SVWS-Endpunkte/Felder liefern LBV-Nummer, Vergütungsschlüssel, Rechtsverhältnis (LAA), Beschäftigungsart (Voll-/Teilzeit)? Gibt es die Felder in allen SVWS-Versionen? | E4, ADR 003 |
+| 1 | **Beantwortet** (E4, ADR 003 4.10): Endpunkte und Felder sind bekannt. Offen: Gibt es sie in allen SVWS-Versionen, und sind sie in echten Datenbanken gepflegt? | E4, ADR 003 |
 | 2 | Darf die LBV-Vorlage im öffentlichen Repository und in den Releases weitergegeben werden? Wer pflegt neue Formularstände? | E6, E10 |
 | 3 | Ziel-Repository: `SVWS-NRW/SVWS-MA2LBV` (wie in `tools.json`) oder zunächst privat? | E1, E8 |
 | 4 | Soll es eine Migration alter `.maa`-Dateien geben? (Setzt Kenntnis von Format und Schlüssel voraus; vorerst Nein.) | E5 |
