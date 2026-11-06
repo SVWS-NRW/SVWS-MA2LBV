@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4A2A14"/>
+      <stop offset="100%" stop-color="#B8651F"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F7B32B"/>
+      <stop offset="100%" stop-color="#F28F3B"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Hintergrund mit abgerundeten Ecken -->
+  <rect x="0" y="0" width="256" height="256" rx="38" fill="url(#bg)"/>
+
+  <!-- Dokument (Änderungsmitteilung) -->
+  <rect x="64" y="40" width="112" height="152" rx="10" fill="white" fill-opacity="0.92"/>
+  <rect x="80" y="60"  width="80" height="8" rx="4" fill="#4A2A14" fill-opacity="0.55"/>
+  <rect x="80" y="80"  width="64" height="8" rx="4" fill="#4A2A14" fill-opacity="0.35"/>
+  <rect x="80" y="100" width="72" height="8" rx="4" fill="#4A2A14" fill-opacity="0.35"/>
+  <rect x="80" y="120" width="52" height="8" rx="4" fill="#4A2A14" fill-opacity="0.35"/>
+
+  <!-- Uhr (Mehrarbeitsstunden) -->
+  <circle cx="170" cy="170" r="48" fill="url(#gold)" stroke="white" stroke-width="6"/>
+  <circle cx="170" cy="170" r="3.5" fill="#4A2A14"/>
+  <line x1="170" y1="170" x2="170" y2="140" stroke="#4A2A14" stroke-width="6" stroke-linecap="round"/>
+  <line x1="170" y1="170" x2="192" y2="182" stroke="#4A2A14" stroke-width="6" stroke-linecap="round"/>
+</svg>
