@@ -42,6 +42,38 @@ export function datumText(d: Date): string {
 
 export class VorlagenFehler extends Error {}
 
+/**
+ * Schriftgröße für mehrzeilige Felder mit automatischer Größe (Dienststelle, Bemerkungen).
+ * Die PDF-Bibliothek würde die größtmögliche Größe wählen, die ins Feld passt, und kurze Texte riesig darstellen.
+ * Wie Acrobat: höchstens 12 pt, bei Bedarf kleiner, damit alle Zeilen in Breite und Höhe passen.
+ */
+export function mehrzeiligeSchriftgroesse(zeilen: string[], breite: number, hoehe: number, messen: (text: string, groesse: number) => number, maximal = 12, minimal = 6): number {
+  const nutzbar = breite - 4
+  /** Zeilen nach dem Umbruch an Wortgrenzen; ein einzelnes zu langes Wort zählt als unpassend */
+  const anzahl = (g: number): number => {
+    let n = 0
+    for (const zeile of zeilen.length > 0 ? zeilen : ['']) {
+      n++
+      let aktuell = ''
+      for (const wort of zeile.split(' ')) {
+        const probe = aktuell === '' ? wort : `${aktuell} ${wort}`
+        if (aktuell !== '' && messen(probe, g) > nutzbar) { n++; aktuell = wort } else aktuell = probe
+      }
+    }
+    return n
+  }
+  const woerter = zeilen.flatMap(z => z.split(' '))
+  let g = maximal
+  while (g > minimal && (anzahl(g) * g * 1.15 > hoehe - 4 || Math.max(0, ...woerter.map(w => messen(w, g))) > nutzbar)) g -= 0.5
+  return g
+}
+
+/** Hat das Feld eine feste Schriftgröße (`/Helv 9 Tf`)? Ohne Angabe oder mit 0 gilt "automatisch". */
+function hatFesteGroesse(da: string | undefined): boolean {
+  const m = /([\d.]+)\s+Tf/.exec(da ?? '')
+  return !!m && Number(m[1]) > 0
+}
+
 export interface ExportOptionen {
   /** Datum im Formularkopf; Standard: heute */
   heute?: Date
@@ -138,7 +170,16 @@ export async function erzeugePdf(
   }
 
   for (const f of form.getFields()) {
-    if (f instanceof PDFTextField) f.updateAppearances(schriftFuerFeld(f, schriften))
+    if (f instanceof PDFTextField) {
+      const schrift = schriftFuerFeld(f, schriften)
+      if (f.isMultiline() && !hatFesteGroesse(f.acroField.getDefaultAppearance())) {
+        const r = f.acroField.getWidgets()[0].getRectangle()
+        const g = mehrzeiligeSchriftgroesse((f.getText() ?? '').split('\n'), r.width, r.height, (t, gr) => schrift.widthOfTextAtSize(t, gr))
+        // Das Feld erbt seine Schrift vom Formular und hat keinen eigenen /DA-Eintrag, den setFontSize bräuchte
+        f.acroField.setDefaultAppearance(`/Helv ${g} Tf 0 g`)
+      }
+      f.updateAppearances(schrift)
+    }
     f.acroField.dict.delete(PDFName.of('AA'))
     for (const w of f.acroField.getWidgets()) w.dict.delete(PDFName.of('AA'))
   }
@@ -169,7 +210,7 @@ function zeichneBarcode(seite: ReturnType<PDFDocument['getPage']>, feld: ReturnT
   const zeichenAnzahl = text.length + 2
   const modul = Math.min(1.161, (r.height - 4) / code39Module(zeichenAnzahl))
   const hoehe = 24.2 * (modul / 1.161)
-  const x = r.x + r.width - 35
+  const x = r.x + r.width - 41.5
   const oben = r.y + r.height - 2
   for (const b of code39Balken(text)) {
     seite.drawRectangle({ x, y: oben - (b.start + b.breite) * modul, width: hoehe, height: b.breite * modul, color: rgb(0, 0, 0), borderWidth: 0 })

@@ -33,15 +33,39 @@ function laden(): Gespeichert {
  * Enthält keine Zugangsdaten und keine Mehrarbeitsdaten von Lehrkräften.
  */
 export const useEinstellungenStore = defineStore('einstellungen', () => {
-  const start = laden()
-  const parameter = ref<LbvParameter>(start.parameter)
-  const verhalten = ref<Verhalten>(start.verhalten)
+  // Beim Start stehen immer die Standardwerte im Speicher. Eine lokale Kopie im Browser gibt es nur im Betrieb
+  // ohne SVWS-Verbindung (`ladeLokal`); mit Verbindung gelten ausschließlich die Daten vom Server (ADR 004).
+  const parameter = ref<LbvParameter>({ ...LEERE_PARAMETER })
+  const verhalten = ref<Verhalten>({ ...STANDARD_VERHALTEN })
   /** Schulnummer stammt aus SVWS und ist dann nicht editierbar */
   const schulnummerAusSvws = ref(false)
+  /** Nur ohne Serververbindung: Änderungen werden im Browser (localStorage) abgelegt */
+  const lokalAktiv = ref(false)
 
   watch([parameter, verhalten], () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ parameter: parameter.value, verhalten: verhalten.value }))
+    if (lokalAktiv.value) localStorage.setItem(STORAGE_KEY, JSON.stringify({ parameter: parameter.value, verhalten: verhalten.value }))
   }, { deep: true })
+
+  /** Betrieb ohne Verbindung: gespeicherte lokale Einstellungen laden und künftig dort ablegen. */
+  function ladeLokal(): void {
+    const l = laden()
+    parameter.value = l.parameter
+    verhalten.value = l.verhalten
+    schulnummerAusSvws.value = false
+    lokalAktiv.value = true
+  }
+
+  /**
+   * Anmeldung am Server: Standardwerte setzen und die lokale Kopie im Browser löschen, damit keine Daten
+   * einer anderen Schule, eines anderen Schemas oder Benutzers hineingelangen oder auf den Server geschrieben werden.
+   */
+  function fuerServerVorbereiten(): void {
+    lokalAktiv.value = false
+    parameter.value = { ...LEERE_PARAMETER }
+    verhalten.value = { ...STANDARD_VERHALTEN }
+    schulnummerAusSvws.value = false
+    try { localStorage.removeItem(STORAGE_KEY) } catch { /* nicht verfügbar */ }
+  }
 
   function setSchulnummerAusSvws(nr: string): void {
     parameter.value.schulnummer = nr
@@ -57,10 +81,11 @@ export const useEinstellungenStore = defineStore('einstellungen', () => {
 
   /** Setzt alle Einstellungen im Speicher auf die Standardwerte (beim Abmelden einer Serververbindung). */
   function zuruecksetzen(): void {
+    lokalAktiv.value = false
     parameter.value = { ...LEERE_PARAMETER }
     verhalten.value = { ...STANDARD_VERHALTEN }
     schulnummerAusSvws.value = false
   }
 
-  return { parameter, verhalten, schulnummerAusSvws, setSchulnummerAusSvws, uebernehme, zuruecksetzen }
+  return { parameter, verhalten, schulnummerAusSvws, setSchulnummerAusSvws, uebernehme, zuruecksetzen, ladeLokal, fuerServerVorbereiten }
 })

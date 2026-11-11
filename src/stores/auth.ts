@@ -43,10 +43,13 @@ export const useAuthStore = defineStore('auth', () => {
     username.value = config.username
     _connected.value = true
     _offline.value = false
-    if (schulnummer.value) useEinstellungenStore().setSchulnummerAusSvws(schulnummer.value)
+    const einstellungen = useEinstellungenStore()
+    einstellungen.fuerServerVorbereiten()
+    if (schulnummer.value) einstellungen.setSchulnummerAusSvws(schulnummer.value)
   }
 
   function arbeitenOhneVerbindung(): void {
+    useEinstellungenStore().ladeLokal()
     _offline.value = true
   }
 

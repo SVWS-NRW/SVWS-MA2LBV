@@ -21,6 +21,8 @@ SVWS-MA2LBV soll das Delphi-Programm **MA2** ablösen. Dessen Fachlogik und vor 
 | `Inst/ForInstall/abrechnung/Test_Abrechnung_*.txt`, `hilfe/mavs.dat` | Beispiel-Abrechnungsdateien (beide Formate), Vergütungsschlüssel |
 | `divi/Calc_Pruefziffer_Javascript.txt` | Prüfziffer-Skript des LBV |
 | Bedienungsanleitung (online, Stand 18.03.2024) und `Bedienungsanleitung/Topics/*.xml` | Anwenderbeschreibung |
+| `Inst/ForInstall/hilfe/ma2_versionshinweise.pdf` | Versionsgeschichte von MA2, letzte Version **3.2.3.2 vom 09.04.2024**. Der analysierte Quelltext entspricht diesem Stand (die Vorlagen liegen im Installationspaket, die Anleitung beschreibt „neu ab Version 3.2“) |
+| drei von MA2 **2.9.0.0** erzeugte PDFs (Stand 2019) | nur als Gegenprobe für die Regeln, nicht als Referenz für das Formular, siehe Abschnitt 5.8 |
 
 Aus den PDF-Vorlagen wurden Formularfelder (Name, Position, Maximallänge) und sämtliche eingebetteten JavaScript-Aktionen mit `pdf-lib` ausgelesen. Die Prüfziffer-Berechnung wurde an den vier gültigen Beispiel-Personalnummern nachgerechnet.
 
@@ -486,6 +488,35 @@ Als Referenz diente `divi/LBV_Formular_gedruckt.pdf`, ein von MA2 erzeugter und 
 6. **Namen:** Durchgehend GROSS geschriebene Namen werden in gemischte Schreibweise gewandelt (`MÜLLER-LÜDENSCHEID` → `Müller-Lüdenscheid`), andere bleiben unverändert (ersetzt `Mixed` aus MA2 näherungsweise, Offene Frage 10).
 7. **Vorlagen im Repository:** Die beiden Vorlagen liegen unter `src/assets/vorlagen/` und sind in das Bundle eingebettet. Ob sie so verteilt werden dürfen, ist weiterhin offen (ADR 001, Offene Frage 2).
 
+### 5.8 Versionsstand von MA2 und Gegenprobe mit Ausgaben aus MA2 2.9.0.0
+
+**Formularstände laut Versionsprotokoll von MA2**
+
+| MA2-Version | Datum | Formular / Änderung |
+|---|---|---|
+| 2.7.0.5 | 21.12.2017 | `LBV(ABes)23_2016_08` |
+| 2.9.0.0 | 01.02.2019 | weiterhin `2016_08` |
+| 2.9.1.2 | 24.05.2019 | neues Formular (Stand 23.11.2018), neues Feld „E-Mail-Adresse“, **Lohnart 5006** mit Merkmal `K` |
+| 2.9.3.0 | 19.02.2020 | Formular Stand **23.02.2019** (`2019_02`) |
+| 3.1.0.0 | 25.02.2023 | MA2 bildet die Druckroutinen der PDF-Vorlage (Barcode, Gitterlinien entfernen) selbst nach, ohne Acrobat Reader. **Die Ausdrucke wurden dem LBV vorgelegt und sind genehmigt.** |
+| 3.2.3.2 | 09.04.2024 | umbenannt in MA2, aktuelles Formular und neue Ausfüllanleitung im Paket, Förderprogramm „Aufholen und Ankommen“ gestrichen |
+
+Unsere eingebettete Vorlage `LBV(A/Bes)23_2019_02` (Datei vom 29.02.2024) entspricht dem Formular im Setup-Paket von MA2 3.2.3.2. Ob das LBV seitdem ein neueres Formular herausgegeben hat, ist damit nicht bestätigt.
+
+**Gegenprobe:** Drei von MA2 **2.9.0.0** erzeugte PDFs (Formular `2016_08`) wurden mit der Ausgabe von SVWS-MA2LBV für dieselben Eingaben verglichen: Vollzeit mit Merkmal `V`, Beamte in Teilzeit mit Merkmal `A` und Tarif-Teilzeit in Abschnitt C. **Alle Werte und der Dateiname stimmen überein** (Personendaten, Zeilen `0125 001 4` und `0125 001 3`, `5004 0125 00100`, Schulnummer, Kästchen „nein“). Die Regeln haben sich seit 2.9.0.0 also in diesen Fällen nicht geändert. Als Test festgehalten in `src/rules/ma2Referenz.test.ts` (mit erfundenen Namen).
+
+Aussagekraft: **gering für das Formular, mittel für die Regeln.** Das Formular `2016_08` hat andere Feldnamen (`LBV_Dienststelle`, `FeldC_Input1_1`), kein Feld `Datum` und keinen Barcode, und die Version 2.9.0.0 kennt weder die Lohnart 5006 noch die Druckroutinen aus 3.1. Eine Unterstützung dieser alten Feldnamen ist daher **nicht** vorgesehen.
+
+**Gegenprobe mit Ausgaben aus MA2 3.2.3.2 (aktuelle Version, Formular `2019_02`):** Fünf PDFs für Januar und Februar 2024, je 1 Stunde: Beamte in Teilzeit mit Merkmal `A` (Schlüssel 1 und 4), Beamter in Vollzeit mit `V` (Schlüssel 2) und zwei Tarifbeschäftigte in **Vollzeit**, die dabei im **Abschnitt A** stehen (Schlüssel 4 und 3). Die Feldnamen entsprechen unserer Vorlage. **Alle 60 Felder und alle fünf Dateinamen stimmen überein**, einschließlich Datum, Dienststelle, Schulnummer und Kästchen „nein“. Unterschiede gibt es nur dort, wo sie zu erwarten sind: MA2 füllt den Barcode erst beim **Drucken**, in der gespeicherten Datei fehlt er, und die gespeicherte Datei zeigt die gelben Kommentarsymbole. Als Test festgehalten in `src/rules/ma2Referenz.test.ts`.
+
+**Druckausgabe aus MA2 3.2.3.2 (Barcode):** Ein aus MA2 gedrucktes PDF (Firefox, „Als PDF speichern“) enthält den Barcode als Code 39 mit dem Inhalt `*ABes23/201902/<LBV-Personalnummer>*` (Kleinbuchstaben, die Schrift zeigt sie als Großbuchstaben) sowie den Klartext `ABes23/201902/<Nr>` gedreht daneben. Muster, Länge (Oberkante y = 311 pt, Unterkante y = 756 pt) und Breite (22,25 pt) stimmen mit unserer gezeichneten Variante überein. Die horizontale Lage wurde angepasst (x = 30,0 bis 52,25 pt, vorher 6,5 pt zu weit rechts). Der Klartext ist bei MA2 etwa 10 % größer. Ob das LBV den Barcode maschinell liest, ist weiter offen.
+
+Nicht abgedeckt sind damit noch Tarif-Teilzeit in Abschnitt C mit `K`, das Formular für Lehramtsanwärter, Stunden mit Dezimalstellen, mehr als zwei Monate, gefüllte Kopfdaten (Aktenzeichen, Bearbeiter, Telefon, E-Mail, Minuten, Unterschrift) und vor allem der **Druck mit Barcode** aus MA2 3.1 und neuer.
+
+**Folgerungen**
+- Der Barcode, die ausgeblendeten Rahmen und die Druckfassung (Abschnitt 5.7) bilden die Routinen nach, die MA2 seit 3.1.0.0 selbst ausführt und die das LBV **genehmigt** hat. Unser Barcode ist eine Vektorgrafik und kein Schriftzeichen. Er dekodiert zu demselben Text, ist aber ein anderer Ausdruck. **Er sollte dem LBV, wie damals bei MA2, zur Prüfung vorgelegt werden** (Offene Frage 7).
+- Als Referenz für die Abnahme werden Ausgaben von **MA2 3.2.3.2** benötigt, mit ausgefüllten Kopfdaten und Fällen wie Lehramtsanwärter, Merkmal `K`, mehrere Monate und Stunden mit Dezimalstellen.
+
 ## 6. Dateien, Konfiguration, Sicherheit
 
 | Thema | Altes MA2 | Neues Tool |
@@ -567,13 +598,13 @@ SchILD-Datenbankzugriff (MDB, UDL, SchILDzentral, `schildintern.mdb`), MA2-Benut
 
 | # | Frage | Wer |
 |---|---|---|
-| 1 | Aktuelle Ausfüllanleitung der Änderungsmitteilung und aktuelle Formularversion (LBV(A/Bes)23_2019_02 noch gültig?) beschaffen. Die im Projekt liegende „Ausfüllhilfe“ ist eine andere Anleitung | Fachlich / LBV |
+| 1 | Formularstand: `2019_02` ist das Formular im Setup-Paket von MA2 3.2.3.2 (April 2024, Abschnitt 5.8). **Offen:** Gibt es seitdem ein neueres Formular? Die aktuelle Ausfüllanleitung des LBV beschaffen. Die im Projekt liegende „Ausfüllhilfe“ ist eine andere Anleitung | Fachlich / LBV |
 | 2 | **Beantwortet:** Der SVWS-Server liefert alle Felder (Abschnitt 4.10). In der geprüften Testdatenbank sind sie aber nicht gepflegt. Wie vollständig sind sie in echten Schul-Datenbanken? | Fachlich / Pilotschule |
 | 3 | Stunden in Abschnitt A: Bankers Rounding wie Delphi oder kaufmännisch runden? Erwartung: Das LBV erwartet ganze Stunden, die Rundung sollte dokumentiert sein | Fachlich |
 | 4 | Welche Anfangsbuchstaben der Personalnummer sind gültig? Vorschlag: Die Menge des jeweiligen Formulars (4.8) und beide Prüfziffer-Verfahren zulassen | Fachlich / LBV |
 | 5 | Gilt eine Obergrenze für Stunden je Monat in Abschnitt A (Delphi: 288, Kommentar im PDF: 24)? | Fachlich / LBV |
 | 6 | Ist Merkmal `V` bei Stunden ≥ 4 zulässig (Delphi ja, PDF nein)? Vorschlag: nein | Fachlich / LBV |
-| 7 | Das PDF wird als Druckfassung erzeugt (Abschnitt 5.7). Liest das LBV den gezeichneten Barcode (`ABES23/201902/<Nr>`, Code 39) zuverlässig? Bitte mit einem echten Ausdruck und einem Scanner prüfen | Fachlich / LBV |
+| 7 | Das PDF wird als Druckfassung erzeugt (Abschnitt 5.7). Liest das LBV den gezeichneten Barcode (`ABES23/201902/<Nr>`, Code 39) zuverlässig? MA2 hat seine Ausdrucke seit 3.1.0.0 dem LBV zur Genehmigung vorgelegt (Abschnitt 5.8). Das Gleiche braucht SVWS-MA2LBV: echten Ausdruck mit Scanner prüfen und dem LBV vorlegen | Fachlich / LBV |
 | 8 | Darf die LBV-Vorlage im öffentlichen Repository verteilt werden (ADR 001, Offene Frage 2)? | Projektleitung |
 | 9 | Unterstützt das neue Tool Abschlagszeilen (Kennzahl 2989 / 2E)? Im alten Programm nicht vorhanden, daher vorerst Nein | Fachlich |
 | 10 | Sollen Namen wie im alten Programm in „gemischter Schreibweise“ ausgegeben werden? Regeln von `Mixed` klären | Fachlich |

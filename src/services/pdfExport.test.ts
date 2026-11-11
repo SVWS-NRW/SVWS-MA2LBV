@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { LEERE_PARAMETER, type LbvParameter } from '@/models/LbvParameter'
 import { pruefeUndBereitVor, type ExportZeile } from '@/rules/pruefung'
 import { dekodiereDataUrl } from './vorlagen'
-import { erzeugePdf, fuegePdfsZusammen, gemischteSchreibweise, VorlagenFehler, zipMitPdfs } from './pdfExport'
+import { erzeugePdf, fuegePdfsZusammen, gemischteSchreibweise, mehrzeiligeSchriftgroesse, VorlagenFehler, zipMitPdfs } from './pdfExport'
 
 const vorlage = (name: string) => new Uint8Array(readFileSync(new URL(`../assets/vorlagen/${name}`, import.meta.url)))
 const heute = new Date(2024, 1, 28)
@@ -131,6 +131,35 @@ describe('Sammel-PDF und ZIP', () => {
     ]))
     expect(Object.keys(zip).sort()).toEqual(['LBV_A.pdf', 'LBV_A_2.pdf', 'LBV_B.pdf'])
     expect([...zip['LBV_A_2.pdf']]).toEqual([2])
+  })
+})
+
+describe('Schriftgröße mehrzeiliger Felder (Dienststelle)', () => {
+  const messen = (t: string, g: number) => t.length * g * 0.5
+  it('wird nie größer als 12 pt, auch bei kurzem Text', () => {
+    expect(mehrzeiligeSchriftgroesse(['Testschule Hallo'], 231, 52, messen)).toBe(12)
+  })
+  it('wird kleiner, wenn mehrere Zeilen oder lange Zeilen nicht passen', () => {
+    expect(mehrzeiligeSchriftgroesse(['a', 'b', 'c', 'd', 'e'], 231, 52, messen)).toBeLessThan(12)
+    expect(mehrzeiligeSchriftgroesse(['x'.repeat(80)], 231, 52, messen)).toBeLessThan(12)
+  })
+  it('berücksichtigt den Umbruch langer Zeilen und verkleinert nur so weit nötig', () => {
+    const lang = 'Städtische Gesamtschule Entenhausen der Stadt Entenhausen mit gymnasialer Oberstufe und Ganztagsangebot'
+    const g = mehrzeiligeSchriftgroesse([lang, 'Schulstraße 1', '12345 Entenhausen'], 231, 52, messen)
+    expect(g).toBeGreaterThan(6)
+    expect(g).toBeLessThan(12)
+  })
+  it('geht nicht unter 6 pt', () => {
+    expect(mehrzeiligeSchriftgroesse(Array(30).fill('x'), 100, 20, messen)).toBe(6)
+  })
+
+  it('das erzeugte PDF enthält für die Dienststelle eine feste, mäßige Schriftgröße', async () => {
+    const p = { ...parameter, dienststelle: 'Testschule Hallo' }
+    const pdf = await lesen(await erzeugePdf(daten(buschmann, p), p, vorlage('LBV-Vorlage.pdf'), { heute }))
+    const da = pdf.form.getTextField('Dienststelle').acroField.getDefaultAppearance() ?? ''
+    const groesse = Number(/([\d.]+)\s+Tf/.exec(da)?.[1])
+    expect(groesse).toBeGreaterThan(0)
+    expect(groesse).toBeLessThanOrEqual(12)
   })
 })
 
