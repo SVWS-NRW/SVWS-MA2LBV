@@ -38,3 +38,15 @@ export const LEERE_PARAMETER: LbvParameter = {
   sachlichRichtig: '',
   unterschrift: '',
 }
+
+/** Übernimmt aus `neu` nur Felder, die `basis` kennt und deren Typ passt; alles andere bleibt wie in `basis`. */
+export function mischeBekannteFelder<T extends object>(basis: T, neu: unknown): T {
+  const out: Record<string, unknown> = { ...basis }
+  if (neu && typeof neu === 'object') {
+    for (const [k, alt] of Object.entries(basis)) {
+      const wert = (neu as Record<string, unknown>)[k]
+      if (typeof wert === typeof alt) out[k] = wert
+    }
+  }
+  return out as T
+}

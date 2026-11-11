@@ -1,6 +1,7 @@
 import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { LEERE_PARAMETER, type LbvParameter, type Verhalten } from '@/models/LbvParameter'
+import { STANDARD_VERHALTEN } from '@/models/Serverdaten'
 
 const STORAGE_KEY = 'svws-ma2lbv-formulardaten'
 
@@ -47,5 +48,19 @@ export const useEinstellungenStore = defineStore('einstellungen', () => {
     schulnummerAusSvws.value = true
   }
 
-  return { parameter, verhalten, schulnummerAusSvws, setSchulnummerAusSvws }
+  /** Übernimmt Einstellungen vom Server. Eine aus SVWS bekannte Schulnummer bleibt erhalten. */
+  function uebernehme(neu: LbvParameter, neuesVerhalten: Verhalten): void {
+    const schulnummer = parameter.value.schulnummer
+    parameter.value = { ...neu, schulnummer: schulnummerAusSvws.value ? schulnummer : neu.schulnummer }
+    verhalten.value = { ...neuesVerhalten }
+  }
+
+  /** Setzt alle Einstellungen im Speicher auf die Standardwerte (beim Abmelden einer Serververbindung). */
+  function zuruecksetzen(): void {
+    parameter.value = { ...LEERE_PARAMETER }
+    verhalten.value = { ...STANDARD_VERHALTEN }
+    schulnummerAusSvws.value = false
+  }
+
+  return { parameter, verhalten, schulnummerAusSvws, setSchulnummerAusSvws, uebernehme, zuruecksetzen }
 })

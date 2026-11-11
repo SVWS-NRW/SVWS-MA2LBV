@@ -162,3 +162,21 @@ describe('Arbeitsdatei: Zustand sichern und laden', () => {
     expect(s.arbeitsdatei).toBe('')
   })
 })
+
+describe('Zurücksetzen (Abmelden)', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('entfernt Zeilen, Zeitraum und Dateinamen und markiert nichts als ungesichert', () => {
+    const s = useAbrechnungStore()
+    s.uebernehmeImport(leseAbrechnung(csv), 'test.txt')
+    s.alsGesichert('stand.ma2lbv')
+    s.zeilen[0].nachname = 'x'; s.zelleGeaendert()
+    s.zuruecksetzen()
+    expect(s.zeilen).toHaveLength(0)
+    expect(s.hatZeitraum).toBe(false)
+    expect(s.abrechnungsdatei).toBe('')
+    expect(s.arbeitsdatei).toBe('')
+    expect(s.geaendert).toBe(false)
+    expect(s.markierteZeilen).toHaveLength(0)
+  })
+})

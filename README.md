@@ -7,10 +7,11 @@ Architektur, Oberfläche und Analyse des Delphi-Codes stehen in den ADRs unter [
 - [ADR 001 – Architektur](docs/adr/adr001-architektur.md)
 - [ADR 002 – Oberfläche](docs/adr/adr002-oberflaeche.md)
 - [ADR 003 – Analyse des Delphi-Codes](docs/adr/adr003-delphi-analyse.md)
+- [ADR 004 – Speicherung auf dem SVWS-Server](docs/adr/adr004-serverspeicherung.md)
 
 ## Projektstatus
 
-Umgesetzt: Verbindung, Dashboard, Mehrarbeitstabelle, Regeln (`src/rules/`), CSV-Import, Lehrkräfte aus SVWS, Einstellungen und PDF-Export (Speichern als PDF/ZIP, Sammel-PDF zum Drucken). Außerdem: verschlüsselte Arbeitsdatei (`.ma2lbv`) sichern und öffnen.
+Umgesetzt: Verbindung, Dashboard, Mehrarbeitstabelle, Regeln (`src/rules/`), CSV-Import, Lehrkräfte aus SVWS, Einstellungen und PDF-Export (Speichern als PDF/ZIP, Sammel-PDF zum Drucken). Außerdem: verschlüsselte Arbeitsdatei (`.ma2lbv`) sichern und öffnen. Mit SVWS-Verbindung werden Einstellungen und Abrechnungsdaten automatisch auf dem Server gespeichert und beim Anmelden geladen.
 
 ## Tech-Stack
 

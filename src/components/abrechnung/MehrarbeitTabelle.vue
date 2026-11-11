@@ -32,6 +32,7 @@ import { pruefeMerkmalEingabe } from '@/rules/merkmal'
 import { istGueltigesDatum } from '@/rules/zahlen'
 import { normalisiereNummer } from '@/rules/personalnummer'
 import MarkierCheck from './MarkierCheck.vue'
+import MarkierKopf from './MarkierKopf.vue'
 import MonatsKopf from './MonatsKopf.vue'
 
 ModuleRegistry.registerModules([ClientSideRowModelModule])
@@ -144,8 +145,7 @@ function monatSpalten(i: number): ColDef<Z>[] {
 
 const columnDefs: ColDef<Z>[] = [
   {
-    colId: 'markiert', headerName: '', width: 52, editable: false, cellRenderer: MarkierCheck, pinned: 'left',
-    headerTooltip: 'Zeile für Prüfung und Export markiert',
+    colId: 'markiert', headerName: '', width: 52, editable: false, cellRenderer: MarkierCheck, headerComponent: MarkierKopf, pinned: 'left',
   },
   {
     colId: 'nr', headerName: '#', width: 56, editable: false, pinned: 'left', type: 'rightAligned',

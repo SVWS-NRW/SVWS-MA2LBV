@@ -105,6 +105,8 @@ Das alte MA2 speicherte die Arbeitsdaten als AES-256-verschlüsselte `.maa`-Date
 | Oberflächeneinstellungen (Theme) | `localStorage`, Schlüssel `dark-mode` | identisch in allen SVWS-Apps, siehe ADR 002 |
 | Erzeugte PDFs | Download durch den Browser bzw. Speichern-Dialog in Electron | Kein Schreiben in feste Pfade (`\pdf`, `\ma`, `\abrechnung`) |
 
+> **Ergänzung (2026-11-11):** Mit bestehender SVWS-Verbindung werden Einstellungen und Abrechnungsdaten zusätzlich auf dem SVWS-Server gespeichert und beim Anmelden geladen, siehe [ADR 004](adr004-serverspeicherung.md). Die Datei dient dann als Sicherung und für die Arbeit ohne Verbindung.
+
 **Umsetzung der Arbeitsdatei** (`services/dateiVerschluesselung.ts`, `models/Arbeitsdaten.ts`):
 - Dateiendung `.ma2lbv`, Inhalt ein JSON-Umschlag mit Format, Version, KDF-Parametern, IV und den verschlüsselten Daten (Base64).
 - **AES-256-GCM** über Web Crypto, Schlüssel per **PBKDF2-SHA-256** mit 600 000 Runden und zufälligem Salt (16 Byte); IV (12 Byte) und Salt sind bei jedem Speichern neu.

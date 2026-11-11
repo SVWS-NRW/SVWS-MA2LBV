@@ -22,7 +22,16 @@ Name, Geburtsdatum, LBV-Personalnummer und Stunden sind personenbezogene Daten.
 - Die Arbeitsdatei wird mit einer von Ihnen gewählten Passphrase verschlüsselt. Die Passphrase kann nicht wiederhergestellt werden.
 - Die erzeugten PDF-Dateien speichern Sie selbst. Gehen Sie mit ihnen wie mit anderen Personalunterlagen um.
 
-## 4. Einstellungen im Browser
+## 4. Speicherung auf dem SVWS-Server
 
-- Formulardaten der Schule (Dienststelle, Aktenzeichen, Bearbeiter, Schulnummer …) und die Theme-Einstellung (Hell/Dunkel) werden im `localStorage` Ihres Browsers gespeichert.
+Wenn du dich mit dem SVWS-Server deiner Schule verbindest, werden deine Einstellungen und die Abrechnungsdaten automatisch dort gespeichert und bei der nächsten Anmeldung wieder geladen.
+
+- Die Daten liegen in der Datenbank deines SVWS-Servers und sind deinem SVWS-Benutzer zugeordnet. Andere Benutzer sehen sie über die Programmschnittstelle nicht.
+- Sie sind dort **nicht** zusätzlich verschlüsselt. Den Schutz übernimmt die Benutzerverwaltung des SVWS-Servers.
+- Ein Administrator kann die Formulardaten als Standard für alle Benutzer der Schule hinterlegen. Das sind keine Daten von Lehrkräften.
+- Ohne Verbindung zum SVWS-Server wird nichts an einen Server übertragen.
+
+## 5. Einstellungen im Browser
+
+- Formulardaten der Schule (Dienststelle, Aktenzeichen, Bearbeiter, Schulnummer …) und die Theme-Einstellung (Hell/Dunkel) werden im `localStorage` deines Browsers gespeichert.
 - Kein Tracking, keine Cookies, keine Drittserver.

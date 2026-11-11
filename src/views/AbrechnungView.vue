@@ -17,23 +17,23 @@
 
     <div class="leiste" role="toolbar" aria-label="Aktionen">
       <div class="gruppe">
-        <Button label="Öffnen" icon="pi pi-folder-open" size="small" severity="secondary" aria-label="Arbeitsdatei öffnen" @click="arbeitsdateiWaehlen" />
-        <Button label="Sichern" icon="pi pi-save" size="small" severity="secondary" aria-label="Arbeitsdatei sichern (Strg+S)" :disabled="store.zeilen.length === 0" @click="sichernOeffnen" />
-      </div>
-      <div class="gruppe">
-        <Button label="Abrechnungsdatei einlesen" icon="pi pi-file-import" size="small" severity="secondary" @click="dateiWaehlen" />
-        <span v-tooltip.bottom="auth.isConnected ? '' : 'Nur mit SVWS-Verbindung möglich'" class="tip">
-          <Button label="Lehrkräfte aus SVWS" icon="pi pi-users" size="small" severity="secondary" :disabled="!auth.isConnected" @click="lehrkraefteOeffnen" />
-        </span>
+        <Button label="Importieren" icon="pi pi-angle-down" iconPos="right" size="small" severity="secondary" aria-haspopup="true" @click="importMenu?.toggle($event)" />
+        <Menu ref="importMenu" :model="importItems" popup />
         <Button label="Zeitraum" icon="pi pi-calendar" size="small" severity="secondary" @click="zeitraumOeffnen" />
       </div>
       <div class="gruppe">
         <Button label="Zeile" icon="pi pi-plus" size="small" severity="secondary" aria-label="Zeile einfügen" @click="zeileEinfuegen" />
         <Button label="Zeile" icon="pi pi-minus" size="small" severity="secondary" aria-label="Zeile löschen" :disabled="store.zeilen.length === 0" @click="zeileLoeschen" />
-        <Button label="Markierung" icon="pi pi-check-square" size="small" severity="secondary" aria-haspopup="true" @click="markierungMenu?.toggle($event)" />
-        <Menu ref="markierungMenu" :model="markierungItems" popup />
         <Button label="Hinweise löschen" icon="pi pi-eraser" size="small" severity="secondary" text :disabled="store.zeilen.length === 0" @click="store.loescheHinweise()" />
         <Button label="Leeren" icon="pi pi-trash" size="small" severity="danger" text :disabled="store.zeilen.length === 0" @click="bestaetigeLeeren" />
+      </div>
+      <div class="gruppe">
+        <!-- Ohne SVWS-Verbindung ist die Datei die einzige Speicherung und bleibt sichtbar; sonst genügt ein Menü -->
+        <Button v-if="!auth.isConnected" label="Sichern" icon="pi pi-save" size="small" severity="secondary" aria-label="Arbeitsdatei sichern (Strg+S)" :disabled="store.zeilen.length === 0" @click="sichernOeffnen" />
+        <template v-else>
+          <Button label="Sicherung" icon="pi pi-angle-down" iconPos="right" size="small" severity="secondary" aria-haspopup="true" @click="sicherungMenu?.toggle($event)" />
+          <Menu ref="sicherungMenu" :model="sicherungItems" popup />
+        </template>
       </div>
       <div class="gruppe gruppe--rechts">
         <Button label="Prüfen" icon="pi pi-verified" size="small" severity="secondary" :disabled="store.markierteZeilen.length === 0 || exportiert" @click="pruefen" />
@@ -56,18 +56,53 @@
       <Button label="Zeitraum festlegen" size="small" text @click="zeitraumOeffnen" />
     </Message>
 
-    <MehrarbeitTabelle ref="tabelle" />
+    <div
+      class="tabelle-bereich"
+      :class="{ 'tabelle-bereich--drag': dragAktiv }"
+      @dragenter.prevent="dragEin"
+      @dragover.prevent
+      @dragleave="dragAus"
+      @drop.prevent="abgelegt"
+    >
+      <MehrarbeitTabelle v-if="store.zeilen.length > 0" ref="tabelle" />
+
+      <div v-else class="leer">
+        <h2>Womit möchtest du beginnen?</h2>
+        <div class="kacheln">
+          <button type="button" class="kachel" :disabled="!auth.isConnected" @click="lehrkraefteOeffnen">
+            <i class="pi pi-users" />
+            <strong>Lehrkräfte aus SVWS</strong>
+            <span>{{ auth.isConnected ? 'Lehrkräfte auswählen, Stunden trägst du danach ein' : 'Nur mit SVWS-Verbindung möglich' }}</span>
+          </button>
+          <button type="button" class="kachel" @click="dateiWaehlen">
+            <i class="pi pi-file-import" />
+            <strong>Abrechnungsdatei importieren</strong>
+            <span>Untis- oder CSV-Datei mit Mehrarbeitsstunden einlesen</span>
+          </button>
+          <button type="button" class="kachel" @click="arbeitsdateiWaehlen">
+            <i class="pi pi-folder-open" />
+            <strong>Gesicherte Datei öffnen</strong>
+            <span>Verschlüsselte Arbeitsdatei (.ma2lbv) laden</span>
+          </button>
+        </div>
+        <p class="leer-hinweis">
+          Du kannst eine Datei auch auf diese Fläche ziehen oder mit „Zeile +“ von Hand beginnen.
+          <template v-if="auth.isConnected">Deine Daten werden automatisch auf dem SVWS-Server gespeichert.</template>
+        </p>
+      </div>
+
+      <div v-if="dragAktiv" class="drop-hinweis" aria-hidden="true"><i class="pi pi-upload" /> Datei hier ablegen</div>
+    </div>
 
     <footer class="fuss">
-      <span><i class="pi pi-save" /> Arbeitsdatei: {{ store.arbeitsdatei || 'nicht gesichert' }}<template v-if="store.geaendert && store.zeilen.length > 0"> *</template></span>
+      <ServerStatus />
+      <span v-if="!sync.aktiv || store.arbeitsdatei"><i class="pi pi-save" /> Arbeitsdatei: {{ store.arbeitsdatei || 'nicht gesichert' }}<template v-if="store.geaendert && store.zeilen.length > 0"> *</template></span>
       <span><i class="pi pi-file" /> Abrechnung: {{ store.abrechnungsdatei || '–' }}</span>
       <span><i class="pi pi-calendar" /> Zeitraum: {{ zeitraumText }}</span>
-      <span v-if="!auth.isConnected"><i class="pi pi-info-circle" /> Ohne SVWS-Verbindung</span>
     </footer>
 
     <input ref="dateiInput" type="file" accept=".txt,.csv,text/plain,text/csv" class="versteckt" @change="dateiGewaehlt" />
     <input ref="arbeitsInput" type="file" :accept="dateiEndung" class="versteckt" @change="arbeitsdateiGewaehlt" />
-    <ConfirmDialog />
 
     <PassphraseDialog
       :visible="passphrase.offen"
@@ -97,11 +132,12 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
+import { useUngespeichert } from '@/composables/useUngespeichert'
+import { useBestaetigung } from '@/composables/useBestaetigung'
 import Button from 'primevue/button'
 import Menu from 'primevue/menu'
 import Message from 'primevue/message'
-import ConfirmDialog from 'primevue/confirmdialog'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import ThemeToggle from '@/components/ThemeToggle.vue'
@@ -109,9 +145,11 @@ import MehrarbeitTabelle from '@/components/abrechnung/MehrarbeitTabelle.vue'
 import StartmonatDialog from '@/components/abrechnung/StartmonatDialog.vue'
 import LehrkraefteDialog from '@/components/abrechnung/LehrkraefteDialog.vue'
 import PassphraseDialog from '@/components/abrechnung/PassphraseDialog.vue'
+import ServerStatus from '@/components/ServerStatus.vue'
 import { useAbrechnungStore } from '@/stores/abrechnung'
 import { useAuthStore } from '@/stores/auth'
 import { useEinstellungenStore } from '@/stores/einstellungen'
+import { useServerSyncStore } from '@/stores/serverSync'
 import { dekodiereDatei, ImportFehler, leseAbrechnung, type ImportErgebnis } from '@/services/csvImport'
 import { alsDatei, erzeugeAllePdfs, sammelPdf } from '@/services/exportAblauf'
 import { VorlagenFehler } from '@/services/pdfExport'
@@ -124,13 +162,33 @@ const router = useRouter()
 const store = useAbrechnungStore()
 const auth = useAuthStore()
 const einstellungen = useEinstellungenStore()
+const sync = useServerSyncStore()
+const { offeneAenderungen } = useUngespeichert()
+const frage = useBestaetigung()
+
+// Warnung beim Verlassen der Abrechnung. Mit Serververbindung wird zuerst gespeichert; gefragt wird nur bei Problemen.
+onBeforeRouteLeave(async () => {
+  const offen = await offeneAenderungen()
+  if (!offen) return true
+  return frage({
+    titel: 'Abrechnung verlassen?',
+    text: auth.isConnected
+      ? `${offen}. Sie bleiben im Programm erhalten, solange du es nicht schließt oder dich abmeldest.`
+      : `${offen}. Sie bleiben im Programm erhalten, gehen aber verloren, wenn du dich abmeldest oder das Programm schließt.`,
+    ja: 'Trotzdem verlassen',
+    nein: 'Hier bleiben',
+  })
+})
 const confirm = useConfirm()
 const toast = useToast()
 
 const tabelle = ref<InstanceType<typeof MehrarbeitTabelle> | null>(null)
 const dateiInput = ref<HTMLInputElement | null>(null)
-const markierungMenu = ref<InstanceType<typeof Menu> | null>(null)
 const exportMenu = ref<InstanceType<typeof Menu> | null>(null)
+const importMenu = ref<InstanceType<typeof Menu> | null>(null)
+const sicherungMenu = ref<InstanceType<typeof Menu> | null>(null)
+const dragZaehler = ref(0)
+const dragAktiv = computed(() => dragZaehler.value > 0)
 const exportiert = ref(false)
 const arbeitsInput = ref<HTMLInputElement | null>(null)
 const dateiEndung = DATEI_ENDUNG
@@ -139,16 +197,22 @@ const passphrase = reactive({ offen: false, modus: 'sichern' as 'sichern' | 'oef
 const startmonat = reactive<{ offen: boolean; warnung: string; danach: ((start: string) => void) | null }>({ offen: false, warnung: '', danach: null })
 const lehrkraefte = reactive({ offen: false })
 
-const markierungItems = [
-  { label: 'Alle markieren', icon: 'pi pi-check-square', shortcut: 'Strg+A', command: () => store.markiere('alle') },
-  { label: 'Keine markieren', icon: 'pi pi-stop', shortcut: 'Strg+K', command: () => store.markiere('keine') },
-  { label: 'Markierung umkehren', icon: 'pi pi-sort-alt', shortcut: 'Strg+U', command: () => store.markiere('umkehren') },
-]
-
 const exportItems = [
   { label: 'PDF-Dateien speichern', icon: 'pi pi-download', command: () => exportieren('speichern') },
   { label: 'Zum Drucken öffnen', icon: 'pi pi-print', command: () => exportieren('drucken') },
 ]
+
+const importItems = computed(() => [
+  { label: 'Lehrkräfte aus SVWS', icon: 'pi pi-users', disabled: !auth.isConnected, command: () => lehrkraefteOeffnen() },
+  { label: 'Abrechnungsdatei (Untis/CSV) …', icon: 'pi pi-file-import', command: () => dateiWaehlen() },
+  { separator: true },
+  { label: 'Gesicherte Arbeitsdatei (.ma2lbv) …', icon: 'pi pi-folder-open', command: () => arbeitsdateiWaehlen() },
+])
+
+const sicherungItems = computed(() => [
+  { label: 'Jetzt auf dem SVWS-Server speichern', icon: 'pi pi-cloud-upload', shortcut: 'Strg+S', command: () => { void jetztSpeichern() } },
+  { label: 'Sicherung in Datei speichern (verschlüsselt) …', icon: 'pi pi-save', disabled: store.zeilen.length === 0, command: () => sichernOeffnen() },
+])
 
 const zeitraumText = computed(() => {
   if (!store.hatZeitraum) return 'nicht festgelegt'
@@ -177,7 +241,10 @@ async function dateiGewaehlt(e: Event): Promise<void> {
   const input = e.target as HTMLInputElement
   const datei = input.files?.[0]
   input.value = ''
-  if (!datei) return
+  if (datei) await verarbeiteAbrechnungsdatei(datei)
+}
+
+async function verarbeiteAbrechnungsdatei(datei: File): Promise<void> {
   let ergebnis: ImportErgebnis
   try {
     ergebnis = leseAbrechnung(dekodiereDatei(new Uint8Array(await datei.arrayBuffer())))
@@ -300,7 +367,10 @@ async function arbeitsdateiGewaehlt(e: Event): Promise<void> {
   const input = e.target as HTMLInputElement
   const datei = input.files?.[0]
   input.value = ''
-  if (!datei) return
+  if (datei) await verarbeiteArbeitsdatei(datei)
+}
+
+async function verarbeiteArbeitsdatei(datei: File): Promise<void> {
   const inhalt = await datei.text()
   const weiter = () => {
     passphrase.modus = 'oeffnen'
@@ -341,6 +411,42 @@ async function passphraseBestaetigt(pw: string): Promise<void> {
   } finally {
     passphrase.laeuft = false
   }
+}
+
+// ── Dateien ablegen ─────────────────────────────────────────────────────────
+
+const hatDateien = (e: DragEvent) => !!e.dataTransfer && [...e.dataTransfer.types].includes('Files')
+
+function dragEin(e: DragEvent): void {
+  if (hatDateien(e)) dragZaehler.value++
+}
+
+function dragAus(e: DragEvent): void {
+  if (hatDateien(e) && dragZaehler.value > 0) dragZaehler.value--
+}
+
+/** Erkennt den Dateityp an der Endung (Abrechnungsdatei oder gesicherte Arbeitsdatei). */
+async function abgelegt(e: DragEvent): Promise<void> {
+  dragZaehler.value = 0
+  const dateien = [...(e.dataTransfer?.files ?? [])]
+  if (dateien.length === 0) return
+  if (dateien.length > 1) {
+    toast.add({ severity: 'warn', summary: 'Datei ablegen', detail: 'Bitte nur eine Datei auf einmal ablegen.', life: 5000 })
+    return
+  }
+  const datei = dateien[0]
+  const name = datei.name.toLowerCase()
+  if (name.endsWith(DATEI_ENDUNG)) await verarbeiteArbeitsdatei(datei)
+  else if (/\.(txt|csv)$/.test(name)) await verarbeiteAbrechnungsdatei(datei)
+  else toast.add({ severity: 'warn', summary: 'Datei ablegen', detail: `„${datei.name}“ wird nicht unterstützt. Möglich sind Abrechnungsdateien (.txt, .csv) und Arbeitsdateien (${DATEI_ENDUNG}).`, life: 7000 })
+}
+
+// ── Speichern auf dem SVWS-Server ────────────────────────────────────────────
+
+async function jetztSpeichern(): Promise<void> {
+  await sync.speichereJetzt()
+  if (sync.status === 'gespeichert') toast.add({ severity: 'success', summary: 'SVWS-Server', detail: 'Alle Daten sind auf dem SVWS-Server gespeichert.', life: 3000 })
+  else if (sync.status === 'fehler') toast.add({ severity: 'error', summary: 'SVWS-Server', detail: sync.fehler, life: 7000 })
 }
 
 // ── PDF-Export ───────────────────────────────────────────────────────────────
@@ -390,31 +496,28 @@ function onKey(e: KeyboardEvent): void {
   if (!e.ctrlKey || e.altKey || e.shiftKey) return
   if (e.key.toLowerCase() === 's') {
     e.preventDefault()
-    sichernOeffnen()
+    // Mit Serververbindung: sofort auf dem Server speichern; sonst die Sicherungsdatei anlegen
+    if (auth.isConnected && sync.aktiv) void jetztSpeichern()
+    else sichernOeffnen()
     return
   }
   const ziel = e.target as HTMLElement | null
-  if (ziel && (ziel.tagName === 'INPUT' || ziel.tagName === 'TEXTAREA' || ziel.isContentEditable)) return
+  // In Textfeldern gehören Strg+A usw. dem Feld (Text markieren); Checkboxen sind davon ausgenommen
+  const textfeld = ziel && ((ziel.tagName === 'INPUT' && (ziel as HTMLInputElement).type !== 'checkbox') || ziel.tagName === 'TEXTAREA' || ziel.isContentEditable)
+  if (textfeld) return
   const modus = ({ a: 'alle', k: 'keine', u: 'umkehren' } as const)[e.key.toLowerCase() as 'a' | 'k' | 'u']
   if (!modus) return
   e.preventDefault()
   store.markiere(modus)
 }
 
-function onBeforeUnload(e: BeforeUnloadEvent): void {
-  // Schutz vor Datenverlust: nur bei ungesicherten Änderungen
-  if (store.geaendert && store.zeilen.length > 0) e.preventDefault()
-}
-
 onMounted(() => {
   window.addEventListener('keydown', onKey)
-  window.addEventListener('beforeunload', onBeforeUnload)
   // Wie MA2 beim ersten Start: Abrechnungszeitraum erfragen
   if (!store.hatZeitraum && store.zeilen.length === 0) zeitraumOeffnen()
 })
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey)
-  window.removeEventListener('beforeunload', onBeforeUnload)
 })
 </script>
 
@@ -448,6 +551,58 @@ onBeforeUnmount(() => {
 .gruppe--rechts { margin-left: auto; }
 .tip { display: inline-flex; }
 .meldung { margin: 0; }
+.tabelle-bereich { flex: 1; display: flex; flex-direction: column; min-height: 360px; position: relative; }
+.tabelle-bereich--drag { outline: 2px dashed var(--accent); outline-offset: 2px; border-radius: 8px; }
+.drop-hinweis {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: 8px;
+  pointer-events: none;
+}
+.leer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 2rem;
+  background: var(--surface);
+  border: 1px dashed var(--app-border);
+  border-radius: 12px;
+}
+.leer h2 { margin: 0; font-size: 1.35rem; }
+.kacheln { display: grid; grid-template-columns: repeat(3, minmax(0, 17rem)); gap: 1rem; }
+@media (max-width: 960px) { .kacheln { grid-template-columns: 1fr; } }
+.kachel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 1.25rem;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--p-content-background, var(--surface));
+  border: 1px solid var(--p-content-border-color, var(--app-border));
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.kachel i { font-size: 1.6rem; color: var(--accent); }
+.kachel span { font-size: 0.9rem; color: var(--p-text-muted-color); }
+.kachel:hover:not(:disabled) { border-color: var(--p-primary-color); background: var(--p-highlight-background); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); }
+.kachel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.kachel:disabled { cursor: not-allowed; opacity: 0.45; }
+.leer-hinweis { margin: 0; max-width: 40rem; text-align: center; font-size: 0.9rem; color: var(--p-text-muted-color); }
 .fuss {
   display: flex;
   gap: 1.5rem;

@@ -125,8 +125,8 @@ Das alte Hauptfenster besteht aus einem Ribbon mit vier Reitern (Datei, Bearbeit
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ ← Dashboard   Mehrarbeit abrechnen            [Theme] [Abmelden]          │  Seitenkopf
 ├──────────────────────────────────────────────────────────────────────────┤
-│ [Abrechnungsdatei einlesen] [Lehrkräfte aus SVWS] [Zeile +] [Zeile –]     │  Werkzeugleiste
-│ [Arbeitsdatei öffnen] [Sichern] │ [Prüfen] [PDF exportieren ▾] [Drucken]  │
+│ [Importieren ▾] [Zeitraum] │ [Zeile +] [Zeile –] [Hinweise] │ [Sicherung ▾] │  Werkzeugleiste
+│                                           [Prüfen] [PDF exportieren ▾]   │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ ☑ # Langname  Vorname  Geb.-Dat.  LBV-Nr.  VS ☑25/10 M ☑25/11 M … Su. Status Hinweis │  Tabelle
 │ ☑ 1 …                                                                    │
@@ -139,17 +139,17 @@ Das alte Hauptfenster besteht aus einem Ribbon mit vier Reitern (Datei, Bearbeit
 
 | Delphi-Aktion | Neue Bedienung |
 |---|---|
-| Abrechnungsdaten importieren / Abrechnungsdatei festlegen | Button „Abrechnungsdatei einlesen“ (Dateiauswahl, beide CSV-Formate werden erkannt). Kein dauerhafter Dateipfad |
+| Abrechnungsdaten importieren / Abrechnungsdatei festlegen | Menü „Importieren“ → „Abrechnungsdatei (Untis/CSV)“ (beide Formate werden erkannt). Kein dauerhafter Dateipfad. Dateien lassen sich auch auf die Tabelle ziehen; der Typ wird an der Endung erkannt |
 | Abrechnungszeitraum zuordnen | Button „Zeitraum…“ öffnet den Startmonat-Dialog (O8). Warnung, dass Stunden, Merkmale und Hinweise gelöscht werden |
-| SchILD-Import | „Lehrkräfte aus SVWS“ (Dialog O8), nur mit Verbindung |
+| SchILD-Import | Menü „Importieren“ → „Lehrkräfte aus SVWS“ (Dialog O8), nur mit Verbindung |
 | Zeile einfügen / löschen | „Zeile +“, „Zeile –“ (und Kontextmenü) |
 | Hinweis löschen / alle Hinweise löschen | Kontextmenü und „Hinweise löschen“ |
-| Mehrarbeitsdatei öffnen / speichern / speichern unter | „Arbeitsdatei öffnen“ / „Sichern“ (verschlüsselte Datei, Passphrase-Dialog) |
+| Mehrarbeitsdatei öffnen / speichern / speichern unter | „Importieren“ → „Gesicherte Arbeitsdatei“ zum Öffnen. Speichern: ohne SVWS-Verbindung Button „Sichern“, mit Verbindung Menü „Sicherung“ (sofort auf dem Server speichern, Sicherungsdatei). Strg+S wirkt je nach Verbindung. Ist die Tabelle leer, bietet sie drei Kacheln zum Beginnen |
 | LBV-Export (eine Zeile / alle markierten) | „PDF exportieren“: aktuelle Zeile oder alle markierten; mehrere Lehrkräfte ergeben ein ZIP |
 | Exportziel „nur prüfen“ | Button „Prüfen“ (Hinweisspalte wird gefüllt, kein PDF) |
 | PDF-Datei anzeigen (Rechtsklick auf Hinweis) | Link in der Hinweisspalte öffnet die PDF-Vorschau in neuem Tab |
 | Übersicht exportieren / drucken | Menü „Tabelle exportieren“ (CSV, PDF), „Drucken“ |
-| Markieren: alle / keine / umkehren (Strg+A / K / U) | Menü am Kopf-Checkbox und dieselben Tastenkürzel |
+| Markieren: alle / keine / umkehren (Strg+A / K / U) | Checkbox im Kopf der Markierungsspalte (alle / keine, Zwischenzustand bei teilweiser Markierung); „umkehren“ und die Tastenkürzel Strg+A / K / U bleiben |
 | Zoom (Strg++ / Strg+–) | Electron-Menü und Tastenkürzel wie in den Schwesterprojekten; im Browser Browser-Zoom |
 | Hilfe (F1), Bedienungsanleitung, Ausfüllanleitung LBV | Footer-Link „Hilfe“ (O10) und Link auf die LBV-Ausfüllanleitung |
 

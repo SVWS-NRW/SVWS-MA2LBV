@@ -32,6 +32,7 @@
             <dt>Benutzer</dt>
             <dd>{{ auth.username }}</dd>
           </dl>
+          <ServerStatus v-if="auth.isConnected" class="sync-status" />
           <span v-else class="tile-sub">Keine SVWS-Verbindung. CSV-Import und manuelle Erfassung sind möglich.</span>
         </div>
       </div>
@@ -63,14 +64,18 @@
 import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import { useAuthStore } from '@/stores/auth'
+import { useServerSyncStore } from '@/stores/serverSync'
+import { useAbmelden } from '@/composables/useAbmelden'
+import ServerStatus from '@/components/ServerStatus.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+const sync = useServerSyncStore()
+const { abmelden } = useAbmelden()
 
-function handleLogout() {
-  auth.disconnect()
-  router.push({ name: 'connect' })
+async function handleLogout() {
+  await abmelden()
 }
 </script>
 
@@ -217,5 +222,9 @@ function handleLogout() {
 
 .info-list .url {
   font-size: 0.85rem;
+}
+
+.sync-status {
+  margin-top: 0.75rem;
 }
 </style>

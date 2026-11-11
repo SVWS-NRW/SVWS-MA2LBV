@@ -76,11 +76,13 @@ import Password from 'primevue/password'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import { useAuthStore } from '@/stores/auth'
+import { useServerSyncStore } from '@/stores/serverSync'
 import LegalFooter from '@/components/LegalFooter.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+const sync = useServerSyncStore()
 
 const form = ref({
   baseUrl: import.meta.env.DEV ? (import.meta.env.VITE_SVWS_URL ?? '') : '',
@@ -102,6 +104,8 @@ async function handleConnect() {
   loading.value = true
   try {
     await auth.connect(form.value)
+    // Einstellungen und Abrechnungsdaten vom SVWS-Server laden; Fehler zeigt die Statusanzeige, die Arbeit bleibt lokal möglich
+    await sync.start()
     router.push({ name: 'dashboard' })
   } catch (e) {
     fehler.value = 'Verbindung fehlgeschlagen. Bitte URL, Schema und Zugangsdaten prüfen.'

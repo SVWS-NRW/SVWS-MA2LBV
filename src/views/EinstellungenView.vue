@@ -9,8 +9,12 @@
     </header>
 
     <p class="auto">
-      <i class="pi pi-check-circle" /> Änderungen werden automatisch in diesem Browser gespeichert. Die Angaben erscheinen im Kopf der Änderungsmitteilung.
+      <i class="pi pi-check-circle" />
+      <template v-if="sync.aktiv">Änderungen werden automatisch auf dem SVWS-Server gespeichert und stehen dir bei der nächsten Anmeldung wieder zur Verfügung.</template>
+      <template v-else>Änderungen werden automatisch in diesem Browser gespeichert.</template>
+      Die Angaben erscheinen im Kopf der Änderungsmitteilung.
     </p>
+    <ServerStatus />
 
     <section class="karte">
       <h2>Formulardaten</h2>
@@ -88,6 +92,17 @@
       </div>
     </section>
 
+    <section v-if="sync.aktiv" class="karte">
+      <h2>Schulstandard</h2>
+      <p class="hilfe">
+        Als Administrator kannst du diese Formulardaten für alle Benutzer der Schule hinterlegen. Wer noch keine eigenen Einstellungen
+        gespeichert hat, startet mit diesem Stand. Eigene Einstellungen haben immer Vorrang.
+      </p>
+      <div class="zeile">
+        <Button label="Als Schulstandard speichern" icon="pi pi-building" severity="secondary" size="small" :loading="standardLaeuft" @click="schulstandard" />
+      </div>
+    </section>
+
     <section class="karte">
       <h2>Daten sichern</h2>
       <p class="hilfe">Exportiere die Formulardaten als Datei, um sie auf einem anderen Rechner zu verwenden. Die Datei enthält keine Zugangsdaten.</p>
@@ -105,7 +120,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
+import { useUngespeichert } from '@/composables/useUngespeichert'
+import { useBestaetigung } from '@/composables/useBestaetigung'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import InputText from 'primevue/inputtext'
@@ -115,6 +132,9 @@ import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import LegalFooter from '@/components/LegalFooter.vue'
+import ServerStatus from '@/components/ServerStatus.vue'
+import { useServerSyncStore } from '@/stores/serverSync'
+import { mischeBekannteFelder } from '@/models/LbvParameter'
 import { useEinstellungenStore } from '@/stores/einstellungen'
 import { LAA_SCHULFORMEN } from '@/rules/schulformen'
 import { pruefeSchulnummer, pruefeStundentaktung } from '@/rules/pruefung'
@@ -122,12 +142,37 @@ import { pruefeSchulnummer, pruefeStundentaktung } from '@/rules/pruefung'
 const router = useRouter()
 const toast = useToast()
 const einstellungen = useEinstellungenStore()
+const sync = useServerSyncStore()
+const { offeneAenderungen } = useUngespeichert()
+const frage = useBestaetigung()
+
+// Mit Serververbindung werden die Einstellungen automatisch gespeichert; gefragt wird nur, wenn das nicht gelang.
+// Ohne Verbindung liegen sie automatisch im Browser, dort gibt es nichts zu warnen.
+onBeforeRouteLeave(async () => {
+  if (!sync.aktiv) return true
+  const offen = await offeneAenderungen()
+  if (!offen) return true
+  return frage({ titel: 'Einstellungen verlassen?', text: `${offen}.`, ja: 'Trotzdem verlassen', nein: 'Hier bleiben' })
+})
+const standardLaeuft = ref(false)
 const { parameter: p, verhalten: v } = storeToRefs(einstellungen)
 const schulformen = LAA_SCHULFORMEN
 const importInput = ref<HTMLInputElement | null>(null)
 
 const schulnummerFehler = computed(() => (p.value.schulnummer === '' ? '' : pruefeSchulnummer(p.value.schulnummer).replace('Fehler: ', '')))
 const minutenFehler = computed(() => pruefeStundentaktung(p.value.anzahlMinuten).replace('Fehler: ', ''))
+
+async function schulstandard(): Promise<void> {
+  standardLaeuft.value = true
+  try {
+    await sync.speichereSchulstandard()
+    toast.add({ severity: 'success', summary: 'Schulstandard', detail: 'Die Formulardaten sind jetzt der Standard für alle Benutzer.', life: 5000 })
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Schulstandard', detail: e instanceof Error ? e.message : 'Speichern fehlgeschlagen.', life: 7000 })
+  } finally {
+    standardLaeuft.value = false
+  }
+}
 
 function exportieren(): void {
   const blob = new Blob([JSON.stringify({ parameter: p.value, verhalten: v.value }, null, 2)], { type: 'application/json' })
@@ -147,14 +192,10 @@ async function importieren(e: Event): Promise<void> {
     const daten = JSON.parse(await datei.text()) as { parameter?: Record<string, unknown>; verhalten?: Record<string, unknown> }
     if (!daten.parameter || typeof daten.parameter !== 'object') throw new Error('keine Formulardaten')
     // Nur bekannte Felder mit passendem Typ übernehmen
-    for (const [k, alt] of Object.entries(p.value)) {
-      const neu = daten.parameter[k]
-      if (typeof neu === typeof alt && !(k === 'schulnummer' && einstellungen.schulnummerAusSvws)) (p.value as unknown as Record<string, unknown>)[k] = neu
-    }
-    for (const [k, alt] of Object.entries(v.value)) {
-      const neu = daten.verhalten?.[k]
-      if (typeof neu === typeof alt) (v.value as unknown as Record<string, unknown>)[k] = neu
-    }
+    const neu = mischeBekannteFelder(p.value, daten.parameter)
+    if (einstellungen.schulnummerAusSvws) neu.schulnummer = p.value.schulnummer
+    p.value = neu
+    v.value = mischeBekannteFelder(v.value, daten.verhalten)
     toast.add({ severity: 'success', summary: 'Einstellungen', detail: 'Formulardaten importiert.', life: 4000 })
   } catch {
     toast.add({ severity: 'error', summary: 'Einstellungen', detail: 'Die Datei enthält keine gültigen Formulardaten.', life: 6000 })

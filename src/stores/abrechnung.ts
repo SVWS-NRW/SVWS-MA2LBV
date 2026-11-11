@@ -33,16 +33,18 @@ export const useAbrechnungStore = defineStore('abrechnung', () => {
   const arbeitsdatei = ref('')
   /** Ungesicherte Änderungen seit dem Öffnen, Sichern oder Anlegen */
   const geaendert = ref(false)
+  /** Zähler aller Änderungen (auch Zellbearbeitung); Auslöser für das Speichern auf dem Server */
+  const stand = ref(0)
 
   const hatZeitraum = computed(() => monate.value.every(m => m !== ''))
   // AG Grid ändert die Zeilenobjekte direkt (ohne Vue-Reaktivität); `revision` löst die Neuberechnung aus
   const markierteZeilen = computed(() => { void revision.value; return zeilen.value.filter(z => z.markiert) })
   const fehlerAnzahl = computed(() => { void revision.value; return zeilen.value.filter(z => z.hinweis.startsWith('Fehler')).length })
 
-  function aenderung(): void { revision.value++; geaendert.value = true }
+  function aenderung(): void { revision.value++; stand.value++; geaendert.value = true }
 
   /** Zelländerung in der Tabelle: nur als ungesichert vermerken, ohne die Tabelle neu zu zeichnen. */
-  function zelleGeaendert(): void { geaendert.value = true }
+  function zelleGeaendert(): void { geaendert.value = true; stand.value++ }
 
   function summe(z: Mehrarbeitszeile): number {
     return z.monate.reduce((s, m, i) => (monatAktiv.value[i] ? s + realVal(m.stunden) : s), 0)
@@ -194,13 +196,24 @@ export const useAbrechnungStore = defineStore('abrechnung', () => {
     geaendert.value = false
   }
 
+  /** Entfernt alle Daten aus dem Speicher (beim Abmelden). */
+  function zuruecksetzen(): void {
+    zeilen.value = []
+    monate.value = Array(6).fill('')
+    monatAktiv.value = Array(6).fill(true)
+    abrechnungsdatei.value = ''
+    arbeitsdatei.value = ''
+    aenderung()
+    geaendert.value = false
+  }
+
   function alsGesichert(dateiname: string): void {
     arbeitsdatei.value = dateiname
     geaendert.value = false
   }
 
   return {
-    arbeitsdatei, geaendert, zelleGeaendert, alsArbeitsdaten, ladeArbeitsdaten, alsGesichert,
+    arbeitsdatei, geaendert, stand, zelleGeaendert, zuruecksetzen, alsArbeitsdaten, ladeArbeitsdaten, alsGesichert,
     zeilen, monate, monatAktiv, abrechnungsdatei, revision,
     hatZeitraum, markierteZeilen, fehlerAnzahl,
     aenderung, summe, setzeStartmonat, uebernehmeImport, uebernehmeLehrkraefte, fuegeZeileEin, loescheZeilen,
