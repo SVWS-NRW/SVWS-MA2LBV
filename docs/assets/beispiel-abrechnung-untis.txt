@@ -1,0 +1,6 @@
+Langname,Vorname,Geburtsdatum,Personalnummer,Status,Statistik,Schlüssel,Monat_1,Stunden_1,Merkmal_1,Monat_2,Stunden_2,Merkmal_2,Monat_3,Stunden_3,Merkmal_3,Monat_4,Stunden_4,Merkmal_4,Monat_5,Stunden_5,Merkmal_5,Monat_6,Stunden_6,Merkmal_6
+Curie,Marie,07.11.1967,B 1234565,v,LV,4,526,0,,626,5,,726,3,v,826,0,,926,6,,1026,2,v
+Hopper,Grace,09.12.1980,P 938352210,v,UV,4,526,0,,626,0,,726,6,,826,0,,926,4,,1026,0,
+Lovelace,Ada,10.12.1990,B 1234566,v,LV,2,526,3,v,626,0,,726,0,,826,0,,926,0,,1026,0,
+Noether,Emmy,23.03.1982,C 7654329,a,LT,3,526,0,,626,0,,726,4,a,826,2.5,a,926,0,,1026,5,a
+Turing,Alan,23.06.1975,P 123456782,v,UT,1,526,0,,626,2.5,k,726,0,,826,3,,926,0,,1026,0,

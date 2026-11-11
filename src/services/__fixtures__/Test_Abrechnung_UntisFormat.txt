@@ -1,0 +1,9 @@
+Langname,Vorname,Geburtsdatum,Personalnummer,Status,Statistik,Schlüssel,Monat_1,Stunden_1,Merkmal_1,Monat_2,Stunden_2,Merkmal_2,Monat_3,Stunden_3,Merkmal_3,Monat_4,Stunden_4,Merkmal_4,Monat_5,Stunden_5,Merkmal_5,Monat_6,Stunden_6,Merkmal_6
+Byran,Augusta,10.09.1981,B 0312222,v,LV,1,816,0,,916,0,,1016,0,,1116,0,,1216,0,,117,0,
+Feynman,Richard,26.04.1975,B 2009012,a,LT,2,816,0,,916,0,,1016,300000,a,1116,400000,a,1216,100000,a,117,200000,a
+Hertz,Heinrich,04.07.1960,C 0798541,v,LV,3,816,0,,916,0,,1016,400000,,1116,0,,1216,0,,117,0,
+Huygens,Christian,14.07.1983,B 0613660,v,LV,4,816,0,,916,0,,1016,0,,1116,0,,1216,0,,117,0,
+Mirzakhani,Maryam,21.04.1960,P 651118815,v,UV,4,816,0,,916,0,,1016,600000,,1116,800000,,1216,300000,,117,0,
+Newton,Isaac,22.04.1961,P 651111171,v,UV,3,816,0,,916,0,,1016,0,,1116,0,,1216,0,,117,0,
+Wiles,Andrew,18.12.1968,B 2407753,a,LT,2,816,0,,916,0,,1016,100000,a,1116,100000,a,1216,100000,a,117,0,
+Witten,Edward,26.11.1975,B 4508020,a,LT,1,816,0,,916,0,,1016,0,,1116,250000,a,1216,0,,117,0,

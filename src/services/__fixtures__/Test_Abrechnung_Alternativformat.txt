@@ -1,0 +1,7 @@
+Nachname,Vorname,Geburtsdatum,Personalnummer,Status,Schlüssel,Monat,Stunden,Merkmal
+Byran,Augusta,10.09.1981,B 0312221,V,1,816,3,v
+Byran,Augusta,10.09.1981,B 0312221,V,1,916,3,v
+Byran,Augusta,10.09.1981,B 0312221,V,1,1016,0,
+Byran,Augusta,10.09.1981,B 0312221,V,1,1116,4,
+Byran,Augusta,10.09.1981,B 0312221,V,1,1216,2,v
+Byran,Augusta,10.09.1981,B 0312221,V,1,117,1,v
