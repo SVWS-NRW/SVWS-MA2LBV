@@ -63,7 +63,7 @@ describe('Export Abschnitt A (Beamter in Teilzeit)', () => {
     expect(r.fehler).toEqual(expect.arrayContaining([
       'Fehler: Schulnummer ungültig',
       'Fehler: Nachname fehlt',
-      'Fehler: Personalnummer: Prüfziffer falsch',
+      'Fehler: LBV-Personalnummer: Prüfziffer falsch',
     ]))
     expect(r.fehler.some(f => f.startsWith('Fehler: Vergütungsschlüssel'))).toBe(true)
   })

@@ -94,3 +94,71 @@ describe('Abrechnung-Store', () => {
     expect(s.fehlerAnzahl).toBe(1)
   })
 })
+
+describe('Export-Vorbereitung', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('liefert Formulardaten nur für fehlerfreie, markierte Zeilen und markiert den Export', () => {
+    const s = useAbrechnungStore()
+    s.uebernehmeImport(leseAbrechnung(csv), 'test.txt', '17/01')
+    s.zeilen[0].monate = [{ stunden: '3', merkmal: '' }, ...Array(5).fill({ stunden: '', merkmal: '' })]
+    const kaputt = s.fuegeZeileEin()
+    expect(kaputt).toBeTruthy()
+    const bereit = s.bereiteExportVor(parameter, true, new Date(2017, 5, 30))
+    expect(bereit).toHaveLength(1)
+    expect(bereit[0].daten.felder['FeldA_Input1.1']).toBe('0117 003 1')
+    expect(s.zeilen[1].hinweis).toContain('Fehler')
+    s.markiereExportiert(bereit[0].zeile.id, bereit[0].daten.dateiname)
+    expect(s.zeilen[0].hinweis).toBe(`Export nach ${bereit[0].daten.dateiname}`)
+  })
+})
+
+describe('Zähler bei direkter Änderung der Zeilenobjekte (wie AG Grid)', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('aktualisiert markierte Zeilen nach store.aenderung()', () => {
+    const s = useAbrechnungStore()
+    s.uebernehmeImport(leseAbrechnung(csv), 'test.txt')
+    expect(s.markierteZeilen).toHaveLength(1)
+    s.zeilen[0].markiert = false
+    s.aenderung()
+    expect(s.markierteZeilen).toHaveLength(0)
+  })
+})
+
+describe('Arbeitsdatei: Zustand sichern und laden', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('stellt Zeilen, Zeitraum und Monatsauswahl wieder her und merkt sich Änderungen', () => {
+    const s = useAbrechnungStore()
+    s.uebernehmeImport(leseAbrechnung(csv), 'test.txt')
+    s.setzeMonatAktiv(1, false)
+    s.zeilen[0].monate[0].merkmal = 'V'
+    const stand = JSON.parse(JSON.stringify(s.alsArbeitsdaten()))
+    expect(stand.zeilen[0]).not.toHaveProperty('id')
+    expect(s.geaendert).toBe(true)
+
+    const t = useAbrechnungStore()
+    t.leeren()
+    t.ladeArbeitsdaten(stand, 'mehrarbeit.ma2lbv')
+    expect(t.geaendert).toBe(false)
+    expect(t.arbeitsdatei).toBe('mehrarbeit.ma2lbv')
+    expect(t.zeilen).toHaveLength(1)
+    expect(t.zeilen[0].id).toBeTruthy()
+    expect(t.monate).toEqual(['16/08', '16/09', '16/10', '16/11', '16/12', '17/01'])
+    expect(t.monatAktiv[1]).toBe(false)
+    expect(t.zeilen[0].monate[0].merkmal).toBe('V')
+    t.zelleGeaendert()
+    expect(t.geaendert).toBe(true)
+    t.alsGesichert('neu.ma2lbv')
+    expect(t.geaendert).toBe(false)
+  })
+
+  it('ändert bei ungültigen Daten nichts', () => {
+    const s = useAbrechnungStore()
+    s.uebernehmeImport(leseAbrechnung(csv), 'test.txt')
+    expect(() => s.ladeArbeitsdaten({ version: 1 }, 'x.ma2lbv')).toThrow()
+    expect(s.zeilen).toHaveLength(1)
+    expect(s.arbeitsdatei).toBe('')
+  })
+})

@@ -1,11 +1,12 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Mehrarbeitszeile } from '@/models/Mehrarbeit'
+import { pruefeArbeitsdaten, type Arbeitsdaten } from '@/models/Arbeitsdaten'
 import type { Lehrkraft } from '@/models/Lehrkraft'
 import type { LbvParameter } from '@/models/LbvParameter'
 import type { ImportErgebnis } from '@/services/csvImport'
 import { datenHinweise, istBereitsAufgenommen } from '@/services/lehrkraftMapper'
-import { pruefeUndBereitVor, setzeMerkmaleAutomatisch, type ExportZeile } from '@/rules/pruefung'
+import { pruefeUndBereitVor, setzeMerkmaleAutomatisch, type ExportZeile, type FormularDaten } from '@/rules/pruefung'
 import { realVal, sechsMonateAb } from '@/rules/zahlen'
 
 let zaehler = 0
@@ -28,12 +29,20 @@ export const useAbrechnungStore = defineStore('abrechnung', () => {
   const abrechnungsdatei = ref('')
   /** Wird bei jeder Zelländerung erhöht, damit die Tabelle neu zeichnet */
   const revision = ref(0)
+  /** Name der geöffneten bzw. zuletzt gesicherten Arbeitsdatei */
+  const arbeitsdatei = ref('')
+  /** Ungesicherte Änderungen seit dem Öffnen, Sichern oder Anlegen */
+  const geaendert = ref(false)
 
   const hatZeitraum = computed(() => monate.value.every(m => m !== ''))
-  const markierteZeilen = computed(() => zeilen.value.filter(z => z.markiert))
-  const fehlerAnzahl = computed(() => zeilen.value.filter(z => z.hinweis.startsWith('Fehler')).length)
+  // AG Grid ändert die Zeilenobjekte direkt (ohne Vue-Reaktivität); `revision` löst die Neuberechnung aus
+  const markierteZeilen = computed(() => { void revision.value; return zeilen.value.filter(z => z.markiert) })
+  const fehlerAnzahl = computed(() => { void revision.value; return zeilen.value.filter(z => z.hinweis.startsWith('Fehler')).length })
 
-  function aenderung(): void { revision.value++ }
+  function aenderung(): void { revision.value++; geaendert.value = true }
+
+  /** Zelländerung in der Tabelle: nur als ungesichert vermerken, ohne die Tabelle neu zu zeichnen. */
+  function zelleGeaendert(): void { geaendert.value = true }
 
   function summe(z: Mehrarbeitszeile): number {
     return z.monate.reduce((s, m, i) => (monatAktiv.value[i] ? s + realVal(m.stunden) : s), 0)
@@ -133,12 +142,11 @@ export const useAbrechnungStore = defineStore('abrechnung', () => {
   }
 
   /**
-   * Prüft die markierten Zeilen (MA2: LBV-Export im Modus "nur prüfen").
-   * Setzt zuvor die Merkmale automatisch, wenn die Einstellung aktiv ist.
+   * Prüft die markierten Zeilen und liefert die Formulardaten der fehlerfreien Zeilen (MA2: LBV-Export).
+   * Setzt zuvor die Merkmale automatisch, wenn die Einstellung aktiv ist. Das Ergebnis steht in der Hinweisspalte.
    */
-  function pruefe(parameter: LbvParameter, merkmalAutomatisch: boolean, heute = new Date()): { ok: number; fehler: number } {
-    let ok = 0
-    let fehler = 0
+  function bereiteExportVor(parameter: LbvParameter, merkmalAutomatisch: boolean, heute = new Date()): { zeile: Mehrarbeitszeile; daten: FormularDaten }[] {
+    const bereit: { zeile: Mehrarbeitszeile; daten: FormularDaten }[] = []
     for (const z of zeilen.value) {
       if (!z.markiert) continue
       let ez = alsExportZeile(z)
@@ -147,16 +155,55 @@ export const useAbrechnungStore = defineStore('abrechnung', () => {
         z.monate = z.monate.map((m, i) => (monatAktiv.value[i] ? { ...m, merkmal: ez.monate[i].merkmal } : m))
       }
       const r = pruefeUndBereitVor(ez, parameter, heute)
-      if (r.fehler.length > 0) { z.hinweis = r.fehler.join('\n'); fehler++ } else { z.hinweis = 'kein Fehler gefunden'; ok++ }
+      if (r.daten) { z.hinweis = 'kein Fehler gefunden'; bereit.push({ zeile: z, daten: r.daten }) } else { z.hinweis = r.fehler.join('\n') }
     }
     aenderung()
-    return { ok, fehler }
+    return bereit
+  }
+
+  /** Prüft die markierten Zeilen ohne PDF-Erzeugung (MA2: LBV-Export im Modus "nur prüfen"). */
+  function pruefe(parameter: LbvParameter, merkmalAutomatisch: boolean, heute = new Date()): { ok: number; fehler: number } {
+    const ok = bereiteExportVor(parameter, merkmalAutomatisch, heute).length
+    return { ok, fehler: markierteZeilen.value.length - ok }
+  }
+
+  function markiereExportiert(id: string, dateiname: string): void {
+    const z = zeilen.value.find(x => x.id === id)
+    if (z) z.hinweis = `Export nach ${dateiname}`
+    aenderung()
+  }
+
+  /** Zustand für die Arbeitsdatei (ohne Zeilen-IDs). */
+  function alsArbeitsdaten(): Arbeitsdaten {
+    return {
+      version: 1,
+      zeilen: zeilen.value.map(({ id: _id, ...rest }) => ({ ...rest, monate: rest.monate.map(m => ({ ...m })) })),
+      monate: [...monate.value], monatAktiv: [...monatAktiv.value], abrechnungsdatei: abrechnungsdatei.value,
+    }
+  }
+
+  /** Ersetzt die Tabelle durch den Inhalt einer Arbeitsdatei; wirft bei ungültigem Aufbau, ohne etwas zu ändern. */
+  function ladeArbeitsdaten(daten: unknown, dateiname: string): void {
+    const d = pruefeArbeitsdaten(daten)
+    monate.value = d.monate
+    monatAktiv.value = d.monatAktiv
+    abrechnungsdatei.value = d.abrechnungsdatei
+    zeilen.value = d.zeilen.map(z => ({ ...z, id: neueId() }))
+    arbeitsdatei.value = dateiname
+    aenderung()
+    geaendert.value = false
+  }
+
+  function alsGesichert(dateiname: string): void {
+    arbeitsdatei.value = dateiname
+    geaendert.value = false
   }
 
   return {
+    arbeitsdatei, geaendert, zelleGeaendert, alsArbeitsdaten, ladeArbeitsdaten, alsGesichert,
     zeilen, monate, monatAktiv, abrechnungsdatei, revision,
     hatZeitraum, markierteZeilen, fehlerAnzahl,
     aenderung, summe, setzeStartmonat, uebernehmeImport, uebernehmeLehrkraefte, fuegeZeileEin, loescheZeilen,
-    leeren, loescheHinweise, markiere, setzeMonatAktiv, pruefe,
+    leeren, loescheHinweise, markiere, setzeMonatAktiv, bereiteExportVor, pruefe, markiereExportiert,
   }
 })

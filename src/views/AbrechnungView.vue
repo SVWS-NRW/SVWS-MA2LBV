@@ -17,7 +17,11 @@
 
     <div class="leiste" role="toolbar" aria-label="Aktionen">
       <div class="gruppe">
-        <Button label="Abrechnungsdatei einlesen" icon="pi pi-folder-open" size="small" severity="secondary" @click="dateiWaehlen" />
+        <Button label="Öffnen" icon="pi pi-folder-open" size="small" severity="secondary" aria-label="Arbeitsdatei öffnen" @click="arbeitsdateiWaehlen" />
+        <Button label="Sichern" icon="pi pi-save" size="small" severity="secondary" aria-label="Arbeitsdatei sichern (Strg+S)" :disabled="store.zeilen.length === 0" @click="sichernOeffnen" />
+      </div>
+      <div class="gruppe">
+        <Button label="Abrechnungsdatei einlesen" icon="pi pi-file-import" size="small" severity="secondary" @click="dateiWaehlen" />
         <span v-tooltip.bottom="auth.isConnected ? '' : 'Nur mit SVWS-Verbindung möglich'" class="tip">
           <Button label="Lehrkräfte aus SVWS" icon="pi pi-users" size="small" severity="secondary" :disabled="!auth.isConnected" @click="lehrkraefteOeffnen" />
         </span>
@@ -32,7 +36,18 @@
         <Button label="Leeren" icon="pi pi-trash" size="small" severity="danger" text :disabled="store.zeilen.length === 0" @click="bestaetigeLeeren" />
       </div>
       <div class="gruppe gruppe--rechts">
-        <Button label="Prüfen" icon="pi pi-verified" size="small" :disabled="store.markierteZeilen.length === 0" @click="pruefen" />
+        <Button label="Prüfen" icon="pi pi-verified" size="small" severity="secondary" :disabled="store.markierteZeilen.length === 0 || exportiert" @click="pruefen" />
+        <Button
+          label="PDF exportieren"
+          icon="pi pi-file-pdf"
+          iconPos="left"
+          size="small"
+          :loading="exportiert"
+          :disabled="store.markierteZeilen.length === 0 || exportiert"
+          aria-haspopup="true"
+          @click="exportMenu?.toggle($event)"
+        />
+        <Menu ref="exportMenu" :model="exportItems" popup />
       </div>
     </div>
 
@@ -44,14 +59,25 @@
     <MehrarbeitTabelle ref="tabelle" />
 
     <footer class="fuss">
+      <span><i class="pi pi-save" /> Arbeitsdatei: {{ store.arbeitsdatei || 'nicht gesichert' }}<template v-if="store.geaendert && store.zeilen.length > 0"> *</template></span>
       <span><i class="pi pi-file" /> Abrechnung: {{ store.abrechnungsdatei || '–' }}</span>
       <span><i class="pi pi-calendar" /> Zeitraum: {{ zeitraumText }}</span>
       <span v-if="!auth.isConnected"><i class="pi pi-info-circle" /> Ohne SVWS-Verbindung</span>
     </footer>
 
     <input ref="dateiInput" type="file" accept=".txt,.csv,text/plain,text/csv" class="versteckt" @change="dateiGewaehlt" />
+    <input ref="arbeitsInput" type="file" :accept="dateiEndung" class="versteckt" @change="arbeitsdateiGewaehlt" />
     <ConfirmDialog />
 
+    <PassphraseDialog
+      :visible="passphrase.offen"
+      :modus="passphrase.modus"
+      :dateiname="passphrase.dateiname"
+      :fehler="passphrase.fehler"
+      :laeuft="passphrase.laeuft"
+      @bestaetigt="passphraseBestaetigt"
+      @abbrechen="passphrase.offen = false; passphrase.inhalt = ''"
+    />
     <StartmonatDialog
       :visible="startmonat.offen"
       :warnung="startmonat.warnung"
@@ -82,10 +108,16 @@ import ThemeToggle from '@/components/ThemeToggle.vue'
 import MehrarbeitTabelle from '@/components/abrechnung/MehrarbeitTabelle.vue'
 import StartmonatDialog from '@/components/abrechnung/StartmonatDialog.vue'
 import LehrkraefteDialog from '@/components/abrechnung/LehrkraefteDialog.vue'
+import PassphraseDialog from '@/components/abrechnung/PassphraseDialog.vue'
 import { useAbrechnungStore } from '@/stores/abrechnung'
 import { useAuthStore } from '@/stores/auth'
 import { useEinstellungenStore } from '@/stores/einstellungen'
 import { dekodiereDatei, ImportFehler, leseAbrechnung, type ImportErgebnis } from '@/services/csvImport'
+import { alsDatei, erzeugeAllePdfs, sammelPdf } from '@/services/exportAblauf'
+import { VorlagenFehler } from '@/services/pdfExport'
+import { DATEI_ENDUNG, DateiFehler, entschluessele, FalschePassphrase, verschluessele } from '@/services/dateiVerschluesselung'
+import { ArbeitsdatenFehler } from '@/models/Arbeitsdaten'
+import { oeffneFensterVorab, speichereDatei, zeigePdf } from '@/utils/datei'
 import type { Lehrkraft } from '@/models/Lehrkraft'
 
 const router = useRouter()
@@ -98,6 +130,11 @@ const toast = useToast()
 const tabelle = ref<InstanceType<typeof MehrarbeitTabelle> | null>(null)
 const dateiInput = ref<HTMLInputElement | null>(null)
 const markierungMenu = ref<InstanceType<typeof Menu> | null>(null)
+const exportMenu = ref<InstanceType<typeof Menu> | null>(null)
+const exportiert = ref(false)
+const arbeitsInput = ref<HTMLInputElement | null>(null)
+const dateiEndung = DATEI_ENDUNG
+const passphrase = reactive({ offen: false, modus: 'sichern' as 'sichern' | 'oeffnen', dateiname: '', inhalt: '', fehler: '', laeuft: false })
 
 const startmonat = reactive<{ offen: boolean; warnung: string; danach: ((start: string) => void) | null }>({ offen: false, warnung: '', danach: null })
 const lehrkraefte = reactive({ offen: false })
@@ -108,11 +145,19 @@ const markierungItems = [
   { label: 'Markierung umkehren', icon: 'pi pi-sort-alt', shortcut: 'Strg+U', command: () => store.markiere('umkehren') },
 ]
 
+const exportItems = [
+  { label: 'PDF-Dateien speichern', icon: 'pi pi-download', command: () => exportieren('speichern') },
+  { label: 'Zum Drucken öffnen', icon: 'pi pi-print', command: () => exportieren('drucken') },
+]
+
 const zeitraumText = computed(() => {
   if (!store.hatZeitraum) return 'nicht festgelegt'
   const f = (m: string) => `${m.slice(3)}/20${m.slice(0, 2)}`
   return `${f(store.monate[0])} – ${f(store.monate[5])}`
 })
+
+/** Zeitraum für Dateinamen: JJMM-JJMM */
+const zeitraumDatei = computed(() => (store.hatZeitraum ? `${store.monate[0].replace('/', '')}-${store.monate[5].replace('/', '')}` : 'Mehrarbeit'))
 
 /** Fragt nach, bevor vorhandene Daten ersetzt werden. */
 function bestaetige(nachricht: string, titel: string, aktion: () => void): void {
@@ -238,10 +283,116 @@ function pruefen(): void {
   }
 }
 
+// ── Arbeitsdatei sichern und öffnen ─────────────────────────────────────────
+
+function sichernOeffnen(): void {
+  if (store.zeilen.length === 0) return
+  passphrase.modus = 'sichern'
+  passphrase.fehler = ''
+  passphrase.offen = true
+}
+
+function arbeitsdateiWaehlen(): void {
+  arbeitsInput.value?.click()
+}
+
+async function arbeitsdateiGewaehlt(e: Event): Promise<void> {
+  const input = e.target as HTMLInputElement
+  const datei = input.files?.[0]
+  input.value = ''
+  if (!datei) return
+  const inhalt = await datei.text()
+  const weiter = () => {
+    passphrase.modus = 'oeffnen'
+    passphrase.dateiname = datei.name
+    passphrase.inhalt = inhalt
+    passphrase.fehler = ''
+    passphrase.offen = true
+  }
+  if (store.geaendert && store.zeilen.length > 0) {
+    bestaetige('Die Tabelle enthält ungesicherte Änderungen. Sie gehen verloren, wenn du die Arbeitsdatei öffnest.', 'Arbeitsdatei öffnen?', weiter)
+  } else {
+    weiter()
+  }
+}
+
+async function passphraseBestaetigt(pw: string): Promise<void> {
+  passphrase.laeuft = true
+  passphrase.fehler = ''
+  try {
+    if (passphrase.modus === 'sichern') {
+      const inhalt = await verschluessele(store.alsArbeitsdaten(), pw)
+      const name = `mehrarbeit_${zeitraumDatei.value}${DATEI_ENDUNG}`
+      speichereDatei(name, new TextEncoder().encode(inhalt), 'application/octet-stream')
+      store.alsGesichert(name)
+      passphrase.offen = false
+      toast.add({ severity: 'success', summary: 'Arbeitsdatei', detail: `Gesichert als „${name}“. Bitte die Passphrase gut aufbewahren.`, life: 6000 })
+    } else {
+      store.ladeArbeitsdaten(await entschluessele(passphrase.inhalt, pw), passphrase.dateiname)
+      passphrase.offen = false
+      passphrase.inhalt = ''
+      toast.add({ severity: 'success', summary: 'Arbeitsdatei', detail: `„${passphrase.dateiname}“ geöffnet (${store.zeilen.length} Zeilen).`, life: 4000 })
+    }
+  } catch (err) {
+    // Bei falscher Passphrase bleibt der Dialog offen, damit sie erneut eingegeben werden kann
+    if (err instanceof FalschePassphrase) passphrase.fehler = err.message
+    else if (err instanceof DateiFehler || err instanceof ArbeitsdatenFehler) { passphrase.offen = false; toast.add({ severity: 'error', summary: 'Arbeitsdatei', detail: err.message, life: 8000 }) }
+    else { console.error('[arbeitsdatei]', err); passphrase.fehler = 'Die Arbeitsdatei konnte nicht verarbeitet werden.' }
+  } finally {
+    passphrase.laeuft = false
+  }
+}
+
+// ── PDF-Export ───────────────────────────────────────────────────────────────
+
+/**
+ * Prüft die markierten Zeilen und erzeugt für die fehlerfreien die Änderungsmitteilung.
+ * "speichern": eine PDF-Datei je Lehrkraft (bei mehreren als ZIP). "drucken": ein Sammel-PDF zum Ausdrucken.
+ */
+async function exportieren(modus: 'speichern' | 'drucken'): Promise<void> {
+  // Fenster muss im Klick geöffnet werden, sonst blockiert der Browser es
+  const fenster = modus === 'drucken' ? oeffneFensterVorab() : null
+  exportiert.value = true
+  try {
+    const bereit = store.bereiteExportVor(einstellungen.parameter, einstellungen.verhalten.merkmalAutomatisch)
+    const fehler = store.markierteZeilen.length - bereit.length
+    if (bereit.length === 0) {
+      fenster?.close()
+      toast.add({ severity: 'warn', summary: 'PDF-Export', detail: 'Keine Zeile ohne Fehler. Details in der Spalte „Hinweis(e)“.', life: 7000 })
+      return
+    }
+    const pdfs = await erzeugeAllePdfs(bereit.map(b => ({ id: b.zeile.id, daten: b.daten })), einstellungen.parameter, { einbrennen: modus === 'drucken' })
+    if (modus === 'speichern') {
+      const d = alsDatei(pdfs, `LBV_Mehrarbeit_${zeitraumDatei.value}.zip`)
+      speichereDatei(d.name, d.bytes, d.mime)
+      for (const p of pdfs) store.markiereExportiert(p.id, p.name)
+    } else {
+      zeigePdf(fenster, 'LBV_Mehrarbeit.pdf', await sammelPdf(pdfs))
+      for (const p of pdfs) store.markiereExportiert(p.id, 'Druckansicht')
+    }
+    toast.add({
+      severity: fehler > 0 ? 'warn' : 'success', summary: 'PDF-Export', life: fehler > 0 ? 8000 : 4000,
+      detail: `${pdfs.length} Änderungsmitteilung${pdfs.length === 1 ? '' : 'en'} erzeugt${fehler > 0 ? `, ${fehler} Zeile${fehler === 1 ? '' : 'n'} mit Fehlern (siehe Hinweise)` : ''}.`,
+    })
+  } catch (e) {
+    fenster?.close()
+    const text = e instanceof VorlagenFehler ? e.message : 'Das PDF konnte nicht erzeugt werden.'
+    console.error('[pdf]', e)
+    toast.add({ severity: 'error', summary: 'PDF-Export', detail: text, life: 8000 })
+  } finally {
+    exportiert.value = false
+  }
+}
+
 // ── Tastenkürzel und Schutz vor Datenverlust ─────────────────────────────────
 
 function onKey(e: KeyboardEvent): void {
   if (!e.ctrlKey || e.altKey || e.shiftKey) return
+  if (e.key.toLowerCase() === 's') {
+    e.preventDefault()
+    sichernOeffnen()
+    return
+  }
   const ziel = e.target as HTMLElement | null
   if (ziel && (ziel.tagName === 'INPUT' || ziel.tagName === 'TEXTAREA' || ziel.isContentEditable)) return
   const modus = ({ a: 'alle', k: 'keine', u: 'umkehren' } as const)[e.key.toLowerCase() as 'a' | 'k' | 'u']
@@ -251,8 +402,8 @@ function onKey(e: KeyboardEvent): void {
 }
 
 function onBeforeUnload(e: BeforeUnloadEvent): void {
-  // Die Arbeitsdatei lässt sich noch nicht sichern, daher schützt dies vor versehentlichem Verlust
-  if (store.zeilen.length > 0) e.preventDefault()
+  // Schutz vor Datenverlust: nur bei ungesicherten Änderungen
+  if (store.geaendert && store.zeilen.length > 0) e.preventDefault()
 }
 
 onMounted(() => {

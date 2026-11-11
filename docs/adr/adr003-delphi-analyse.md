@@ -467,6 +467,25 @@ Der Barcode enthält die **Formularkennung** `ABes23/201902` und die Personalnum
 
 Schlägt ein Feld nicht an (`FindFormFieldbyTitle` = 0), meldet MA2 „Formfeld nicht gefunden: …“ und bricht ab.
 
+### 5.7 Umsetzung in SVWS-MA2LBV und Abgleich mit dem Referenzausdruck
+
+Als Referenz diente `divi/LBV_Formular_gedruckt.pdf`, ein von MA2 erzeugter und über „Microsoft Print to PDF“ ausgedruckter Antrag (Dateiname `LBV_Buschmann_C1207893_1809-1901.pdf`). Die Umsetzung (`services/pdfExport.ts`, `rules/code39.ts`) wurde damit verglichen.
+
+**Befunde am Referenzausdruck**
+- **Der Barcode kodiert `*ABES23/201902/C1207893*`** in Code 39, also **in Großbuchstaben**. Die Barcode-Schrift `3of9Barcode` der Vorlage bildet Kleinbuchstaben (`e`, `s` in `ABes23`) auf Großbuchstaben ab. Das lesbare Textfeld `LBV_Barcode_Text` zeigt dagegen `ABes23/201902/C1207893`. Ausgewertet wurde der Ausdruck mit einem eigenen Code-39-Decoder anhand der Balkenbreiten.
+- **Maße des Barcodes:** schmaler Balken rund 1,16 pt, breiter Balken dreifach, Länge rund 445 pt bei 24 Zeichen (383 Module), Breite rund 24 pt, Beginn 2 pt unter der Oberkante des Feldes `LBV_Barcode_9of3`.
+- Felder **ohne Druck-Flag** (Platzhalter `#`, die Legende der Vergütungsschlüssel, „(dezimal mit 2 NK)“) erscheinen nur am Bildschirm und fehlen im Ausdruck.
+- Feldtexte, Reihenfolge und Merkmale stimmen mit dem Ergebnis von `rules/formular.ts` überein (`0918 002 1 V`, …).
+
+**Entscheidungen der Umsetzung**
+1. **Barcode als Vektorgrafik** statt über die Barcode-Schrift: Die Schrift der Vorlage lässt sich mit `pdf-lib` nicht wiederverwenden. Die gezeichneten Balken dekodieren in der Prüfung zu demselben Text wie das Original und liegen auf 0,7 pt genau an derselben Stelle. Bei 26 Zeichen (10-stellige Personalnummer) wird das Modul verkleinert, sodass der Barcode in das Feld passt. Das LBV-seitige Lesen ist **nicht** geprüft (Offene Frage 7).
+2. **JavaScript der Vorlage wird entfernt** (Dokument- und Feldaktionen). Es würde beim Drucken in Acrobat erneut die Barcode-Felder füllen und einen zweiten Barcode über den gezeichneten legen. Damit entfallen auch die Eingabeprüfungen im PDF; die Prüfungen laufen vorher im Tool (`rules/pruefung.ts`).
+3. **Druckfassung:** Rahmen der in MA2 (`InitDruckausgabe`) genannten Felder werden ausgeblendet, `LBV_Barcode_Text` wird immer sichtbar gemacht, alle Nicht-Formular-Annotationen (Kommentarsymbole, Linien) werden entfernt. Die Formularfelder bleiben im gespeicherten PDF bearbeitbar.
+4. **Zum Drucken öffnen** erzeugt ein Sammel-PDF aus **eingebrannten** Formularen (`form.flatten()`); vorher werden Felder ohne Druck-Flag entfernt, damit Platzhalter und Legende nicht mitgedruckt werden.
+5. **Schriften:** Die Vorlagen verwenden eingebettete TrueType-Teilmengen (Arial, Courier New Bold). `pdf-lib` kann sie nicht erweitern; verwendet werden die Standardschriften Helvetica, Courier-Bold und Times-Roman. Texte mit Zeichen außerhalb von WinAnsi erhalten ein `?`.
+6. **Namen:** Durchgehend GROSS geschriebene Namen werden in gemischte Schreibweise gewandelt (`MÜLLER-LÜDENSCHEID` → `Müller-Lüdenscheid`), andere bleiben unverändert (ersetzt `Mixed` aus MA2 näherungsweise, Offene Frage 10).
+7. **Vorlagen im Repository:** Die beiden Vorlagen liegen unter `src/assets/vorlagen/` und sind in das Bundle eingebettet. Ob sie so verteilt werden dürfen, ist weiterhin offen (ADR 001, Offene Frage 2).
+
 ## 6. Dateien, Konfiguration, Sicherheit
 
 | Thema | Altes MA2 | Neues Tool |
@@ -524,7 +543,7 @@ Diese Stellen dürfen **nicht blind** übernommen werden; jede ist ein Testfall 
 2. **Alle Fehler je Zeile sammeln** statt nur den ersten (Verbesserung gegenüber Delphi). Die Reihenfolge der Prüfungen bleibt für die Anzeige des ersten Fehlers erhalten.
 3. **Rundung, Merkmalsautomatik und Export** arbeiten auf denselben, bereits gerundeten Stunden (Auffälligkeit 2).
 4. **Beide Formulare** (Lehrkräfte, LAA) werden unterstützt; die Abschlagszeilen (Kennzahl 2989/2E) **nicht**, wie im alten Programm.
-5. **Druckfassung:** Das erzeugte PDF enthält wie beim Direktdruck von MA2 den Barcode (Formularkennung + Personalnummer) und ausgeblendete Rahmen. Der Browser führt das Skript des PDF nicht aus; ohne diese Befüllung wäre der Ausdruck für das LBV nicht maschinenlesbar. Prüfung mit einem echten Ausdruck steht aus (Offene Frage 7).
+5. **Druckfassung:** Das erzeugte PDF enthält wie beim Direktdruck von MA2 den Barcode (Formularkennung + Personalnummer) und ausgeblendete Rahmen. Der Browser führt das Skript des PDF nicht aus; ohne diese Befüllung wäre der Ausdruck für das LBV nicht maschinenlesbar. Umgesetzt und gegen den Referenzausdruck geprüft, siehe Abschnitt 5.7.
 6. **Testdaten:** Die vier Beispiel-Lehrkräfte der Dateien `Test_Abrechnung_*.txt` dienen als Golden-File-Tests; erwartet werden u. a. für Feynman (`B 2009012`, Statistik `LT`, Schlüssel 2) im Oktober 2016 `FeldA_Input1.1 = "1016 003 2"` mit `FeldA_Input1.2 = "A"` (Untis-Wert `300000` → 3 Stunden) sowie die Prüfziffer-Fehlermeldung für die Nummer `B 0312221` aus dem Alternativformat. Die erwarteten Werte sind vor dem Einchecken gegen eine mit MA2 erzeugte Referenz-PDF zu bestätigen.
 
 ## 10. Was nicht übernommen wird
@@ -554,7 +573,7 @@ SchILD-Datenbankzugriff (MDB, UDL, SchILDzentral, `schildintern.mdb`), MA2-Benut
 | 4 | Welche Anfangsbuchstaben der Personalnummer sind gültig? Vorschlag: Die Menge des jeweiligen Formulars (4.8) und beide Prüfziffer-Verfahren zulassen | Fachlich / LBV |
 | 5 | Gilt eine Obergrenze für Stunden je Monat in Abschnitt A (Delphi: 288, Kommentar im PDF: 24)? | Fachlich / LBV |
 | 6 | Ist Merkmal `V` bei Stunden ≥ 4 zulässig (Delphi ja, PDF nein)? Vorschlag: nein | Fachlich / LBV |
-| 7 | Soll das PDF standardmäßig als Druckfassung (Barcode, ausgeblendete Rahmen) erzeugt werden, und liest das LBV den Barcode im Format `ABes23/201902/<Nr>` weiterhin? | Fachlich / LBV |
+| 7 | Das PDF wird als Druckfassung erzeugt (Abschnitt 5.7). Liest das LBV den gezeichneten Barcode (`ABES23/201902/<Nr>`, Code 39) zuverlässig? Bitte mit einem echten Ausdruck und einem Scanner prüfen | Fachlich / LBV |
 | 8 | Darf die LBV-Vorlage im öffentlichen Repository verteilt werden (ADR 001, Offene Frage 2)? | Projektleitung |
 | 9 | Unterstützt das neue Tool Abschlagszeilen (Kennzahl 2989 / 2E)? Im alten Programm nicht vorhanden, daher vorerst Nein | Fachlich |
 | 10 | Sollen Namen wie im alten Programm in „gemischter Schreibweise“ ausgegeben werden? Regeln von `Mixed` klären | Fachlich |

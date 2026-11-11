@@ -10,7 +10,7 @@ Architektur, Oberfläche und Analyse des Delphi-Codes stehen in den ADRs unter [
 
 ## Projektstatus
 
-Projektgerüst (Verbindung, Dashboard, Theme, Electron, Release-Skripte). Mehrarbeitstabelle, Regeln (`src/rules/`), CSV-Import und PDF-Export folgen.
+Umgesetzt: Verbindung, Dashboard, Mehrarbeitstabelle, Regeln (`src/rules/`), CSV-Import, Lehrkräfte aus SVWS, Einstellungen und PDF-Export (Speichern als PDF/ZIP, Sammel-PDF zum Drucken). Außerdem: verschlüsselte Arbeitsdatei (`.ma2lbv`) sichern und öffnen.
 
 ## Tech-Stack
 

@@ -1,6 +1,6 @@
 'use strict'
 
-const { app, BrowserWindow, session, Menu } = require('electron')
+const { app, BrowserWindow, session, Menu, dialog } = require('electron')
 const path = require('path')
 
 function fixCorsHeaders(details, callback) {
@@ -29,6 +29,21 @@ function createWindow() {
   })
 
   session.defaultSession.webRequest.onHeadersReceived(fixCorsHeaders)
+
+  // Die Seite meldet ungesicherte Änderungen über beforeunload. Electron schließt das Fenster dann
+  // ohne Rückfrage nicht, deshalb fragen wir hier nach.
+  win.webContents.on('will-prevent-unload', (event) => {
+    const wahl = dialog.showMessageBoxSync(win, {
+      type: 'question',
+      buttons: ['Beenden', 'Abbrechen'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Ungesicherte Änderungen',
+      message: 'Die Arbeitsdaten enthalten ungesicherte Änderungen.',
+      detail: 'Sichern Sie die Arbeitsdatei, bevor Sie das Programm beenden. Trotzdem beenden?',
+    })
+    if (wahl === 0) event.preventDefault() // ignoriert die Sperre und schließt das Fenster
+  })
 
   win.webContents.on('before-input-event', (event, input) => {
     if (!input.control || input.type !== 'keyDown') return

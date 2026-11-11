@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { berechnePruefziffer, normalisiereNummer, pruefePersonalnummer } from './personalnummer'
 
-describe('Personalnummer', () => {
+describe('LBV-Personalnummer', () => {
   it('entfernt Leerzeichen und normalisiert Großbuchstaben', () => {
     expect(normalisiereNummer('b 0312222')).toBe('B0312222')
   })
@@ -20,10 +20,20 @@ describe('Personalnummer', () => {
     expect(pruefePersonalnummer('B 0312221')).toContain('Prüfziffer')
   })
 
-  it('meldet fehlende Nummer und falschen Aufbau', () => {
-    expect(pruefePersonalnummer('')).toContain('fehlt')
-    expect(pruefePersonalnummer('B03122')).toContain('Aufbau')
-    expect(pruefePersonalnummer('0312222')).toContain('Aufbau')
+  it('meldet die Fehler in der Reihenfolge und mit dem Wortlaut von MA2', () => {
+    expect(pruefePersonalnummer('')).toBe('Fehler: LBV-Personalnummer fehlt')
+    expect(pruefePersonalnummer('0312222')).toContain('beginnt nicht mit')
+    expect(pruefePersonalnummer('X0312222')).toContain('beginnt nicht mit')
+    expect(pruefePersonalnummer('B03122')).toBe('Fehler: LBV-Personalnummer: Länge <> 8')
+    expect(pruefePersonalnummer('B 03122222')).toBe('Fehler: LBV-Personalnummer: Länge <> 8')
+    expect(pruefePersonalnummer('B03122X2')).toBe('Fehler: LBV-Personalnummer: Zeichen falsch')
+  })
+
+  it('P-Nummern brauchen 10 Zeichen: P9383522 hat nur 7 Ziffern', () => {
+    expect(pruefePersonalnummer('P9383522')).toBe('Fehler: LBV-Personalnummer: Länge <> 10')
+    expect(pruefePersonalnummer('P12345678')).toBe('Fehler: LBV-Personalnummer: Länge <> 10')
+    expect(pruefePersonalnummer('P12345678X2')).toBe('Fehler: LBV-Personalnummer: Länge <> 10')
+    expect(pruefePersonalnummer('P12345678A')).toBe('Fehler: LBV-Personalnummer: Zeichen falsch')
   })
 
   it('prüft die Anfangsbuchstaben je Vorlage', () => {

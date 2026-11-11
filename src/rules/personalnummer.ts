@@ -44,25 +44,26 @@ export function berechnePruefziffer(nummer: string): number | null {
   return null
 }
 
-/** Prüft eine Personalnummer und liefert die Fehlermeldung oder `''`. */
+/**
+ * Prüft eine LBV-Personalnummer und liefert die Fehlermeldung oder `''`.
+ * Reihenfolge und Wortlaut wie `CheckLBVNr` in MA2: leer, Anfangsbuchstabe, Länge (je nach Buchstabe),
+ * Ziffern, Prüfziffer. Die zulässigen Buchstaben richten sich nach der Vorlage (ADR 003, 4.8).
+ */
 export function pruefePersonalnummer(nummer: string, formular: Formular = 'LEHRKRAFT'): string {
   const n = normalisiereNummer(nummer)
   if (n === '') return 'Fehler: LBV-Personalnummer fehlt'
   const erlaubt = ERLAUBT[formular]
-  const achtstellig = /^[A-Z]\d{7}$/.test(n)
-  const zehnstellig = /^[A-Z]\d{9}$/.test(n)
-  if (!achtstellig && !zehnstellig) {
-    return 'Fehler: Personalnummer: Aufbau falsch (Buchstabe + 7 bzw. 9 Ziffern)'
+  const buchstabe = n[0]
+  const alle = [...erlaubt.acht, ...erlaubt.zehn].sort()
+  if (!alle.includes(buchstabe)) {
+    return `Fehler: LBV-Personalnummer beginnt nicht mit ${alle.map(b => `"${b}"`).join(', ')}`
   }
-  if (achtstellig && !erlaubt.acht.includes(n[0])) {
-    return `Fehler: Personalnummer beginnt nicht mit "${[...erlaubt.acht].join('", "')}"`
+  const zehnstellig = erlaubt.zehn.includes(buchstabe)
+  if (n.length - 1 !== (zehnstellig ? 9 : 7)) {
+    return `Fehler: LBV-Personalnummer: Länge <> ${zehnstellig ? 10 : 8}`
   }
-  if (zehnstellig && !erlaubt.zehn.includes(n[0])) {
-    return `Fehler: Personalnummer (10-stellig) beginnt nicht mit "${[...erlaubt.zehn].join('", "')}"`
-  }
+  if (!/^\d+$/.test(n.slice(1))) return 'Fehler: LBV-Personalnummer: Zeichen falsch'
   const soll = berechnePruefziffer(n)
-  if (soll === null || soll !== Number(n[n.length - 1])) {
-    return 'Fehler: Personalnummer: Prüfziffer falsch'
-  }
+  if (soll === null || soll !== Number(n[n.length - 1])) return 'Fehler: LBV-Personalnummer: Prüfziffer falsch'
   return ''
 }

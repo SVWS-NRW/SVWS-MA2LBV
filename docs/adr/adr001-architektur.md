@@ -105,12 +105,22 @@ Das alte MA2 speicherte die Arbeitsdaten als AES-256-verschlüsselte `.maa`-Date
 | Oberflächeneinstellungen (Theme) | `localStorage`, Schlüssel `dark-mode` | identisch in allen SVWS-Apps, siehe ADR 002 |
 | Erzeugte PDFs | Download durch den Browser bzw. Speichern-Dialog in Electron | Kein Schreiben in feste Pfade (`\pdf`, `\ma`, `\abrechnung`) |
 
+**Umsetzung der Arbeitsdatei** (`services/dateiVerschluesselung.ts`, `models/Arbeitsdaten.ts`):
+- Dateiendung `.ma2lbv`, Inhalt ein JSON-Umschlag mit Format, Version, KDF-Parametern, IV und den verschlüsselten Daten (Base64).
+- **AES-256-GCM** über Web Crypto, Schlüssel per **PBKDF2-SHA-256** mit 600 000 Runden und zufälligem Salt (16 Byte); IV (12 Byte) und Salt sind bei jedem Speichern neu.
+- Format, Version und KDF-Parameter gehen als authentifizierte Zusatzdaten ein. Manipulationen an Inhalt oder Parametern fallen wie eine falsche Passphrase auf (GCM-Prüfung), ohne zu verraten, was davon zutrifft.
+- Beim Öffnen wird die Rundenzahl auf 1 000 bis 5 000 000 begrenzt, damit eine manipulierte Datei den Browser nicht blockiert.
+- Die Passphrase muss beim Sichern mindestens 8 Zeichen lang sein und wird wiederholt abgefragt. Sie wird nirgends gespeichert; eine vergessene Passphrase lässt sich nicht wiederherstellen.
+- Gesichert werden nur Tabellenzeilen, Abrechnungszeitraum und Monatsauswahl, **keine** Zugangsdaten und keine Einstellungen. Entschlüsselte Daten werden vor der Übernahme auf ihren Aufbau geprüft (`pruefeArbeitsdaten`); bei Fehlern bleibt die Tabelle unverändert.
+- Schutz vor Datenverlust: Die Oberfläche merkt ungesicherte Änderungen (Stern hinter dem Dateinamen). Der Browser warnt beim Schließen (`beforeunload`), Electron fragt über `will-prevent-unload` nach, und vor dem Überschreiben durch „Öffnen“ erscheint eine Rückfrage. Strg+S sichert.
+- Gesichert wird über einen Download (Browser und Electron), geöffnet über die Dateiauswahl. Es gibt keinen festen Speicherort wie `\ma` in MA2.
+
 Alte `.maa`-Dateien werden **nicht** gelesen (Format und Schlüssel sind nicht Teil der Aufgabe, siehe Offene Fragen). Die Umstellung läuft über den CSV-Import und den Lehrkraft-Import aus SVWS.
 
 ### E6 – PDF-Erzeugung im Client
 
 - Die LBV-Vorlagen (`LBV-Vorlage.pdf` für Lehrkräfte, `LBV-LAA-Vorlage.pdf` für Lehramtsanwärter) werden mit `pdf-lib` geladen, die benannten AcroForm-Felder werden gesetzt, das Ergebnis wird als Blob bereitgestellt.
-- **Die Vorlagen werden in das Bundle eingebettet** (Vite `?inline`, Base64, lazy geladen) und nicht als eigene Dateien ausgeliefert. Gründe:
+- **Die Vorlagen werden in das Bundle eingebettet** (Vite `?inline`, Base64; Umsetzung in `services/vorlagen.ts`) und nicht als eigene Dateien ausgeliefert. Gründe:
   1. Der SVWS-Server liefert unter `/app/<name>/` nur bestimmte Dateitypen aus. SVWS-Tools ADR 001 nennt `.html`, `.js`, `.css`, Bilder und Schriften, ausdrücklich nicht `.json`; `.pdf` steht nicht in dieser Liste. Eine lose PDF-Datei im Web-App-ZIP wäre dann im Betrieb vermutlich nicht abrufbar (gegen den SVWS-Server zu verifizieren, Einbetten ist in jedem Fall sicher).
   2. Unter `file://` (Electron, Offline-Betrieb) schlägt `fetch()` auf lokale Dateien wegen CORS fehl.
 - Die Vorlagen können durch die Anwenderin oder den Anwender ersetzt werden (Upload in den Einstellungen), falls das LBV ein neues Formular veröffentlicht, bevor ein Tool-Update erscheint. Das entspricht der Delphi-Lösung mit austauschbarem `Vorlagen`-Ordner.
@@ -246,7 +256,7 @@ Der Delphi-Code ist proprietär und liegt außerhalb dieses Repositorys (`/home/
 
 **Negativ / Risiken**
 - Der PDF-Barcode und Teile der Vorlagen-Logik hängen an JavaScript im PDF, das Browser-Viewer und `pdf-lib` nicht ausführen. Die Logik wird deshalb im Tool nachgebildet (ADR 003). Ob das Ergebnis im Adobe Reader identisch druckt, muss mit echten Ausdrucken geprüft werden.
-- Eingebettete PDFs vergrößern das Bundle um etwa 2,5 MB (Base64 der beiden Vorlagen). Sie werden lazy geladen, damit der Start nicht langsamer wird.
+- Eingebettete PDFs vergrößern das Bundle um etwa 2,5 MB (Base64 der beiden Vorlagen). Gemessen: Das Bundle wächst mit `pdf-lib` von 2,2 MB auf 5,1 MB (gzip 2,4 MB, die PDFs komprimieren kaum). Echtes Nachladen entfällt, weil das IIFE-Bundle (E3) keine getrennten Chunks erlaubt; die Dynamik von `ladeVorlage` bewirkt nur, dass die Base64-Daten erst bei Bedarf dekodiert werden.
 - Der SVWS-Server liefert die LBV-Felder möglicherweise nicht vollständig; die Lehrkraft-Übernahme ist dann nur teilweise automatisch.
 - Eine neue LBV-Formularversion erfordert ein Tool-Update oder den Austausch der Vorlage durch die Schule.
 - Keine Übernahme alter `.maa`-Dateien: Schulen müssen offene Abrechnungen vor der Umstellung abschließen oder neu importieren.

@@ -11,6 +11,7 @@
     :enableCellTextSelection="true"
     :suppressColumnVirtualisation="true"
     @grid-ready="onGridReady"
+    @cell-value-changed="store.zelleGeaendert()"
   />
 </template>
 
