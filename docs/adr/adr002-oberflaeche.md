@@ -225,7 +225,7 @@ Auf der Verbindungsseite steht der Footer unter der Karte. Auf allen anderen Sei
 
 ### O11 – Texte, Sprache, Barrierefreiheit
 
-- Oberflächensprache **Deutsch**, Sie-Form, Begriffe wie im SVWS: „Lehrkraft“, „Abrechnungszeitraum“, „Vergütungsschlüssel“, „Änderungsmitteilung“. Fehlermeldungen übernehmen den Wortlaut des alten Programms, wo er fachlich erprobt ist (z. B. „Fehler: Vergütungsschlüssel (…)“), und zeigen die Ursache in einem Satz.
+- Oberflächensprache **Deutsch**, **Du-Form** (Entscheidung 2026-11-11, gilt für Oberfläche, Datenschutzhinweise und Bedienungsanleitung), Begriffe wie im SVWS: „Lehrkraft“, „Abrechnungszeitraum“, „Vergütungsschlüssel“, „Änderungsmitteilung“. Fehlermeldungen übernehmen den Wortlaut des alten Programms, wo er fachlich erprobt ist (z. B. „Fehler: Vergütungsschlüssel (…)“), und zeigen die Ursache in einem Satz.
 - Fehlermeldungen: Toast für Aktionen, `Message` im Formular, Hinweisspalte für zeilenbezogene Fehler. Keine `alert()`-Dialoge.
 - Tastaturbedienung: alle Aktionen per Tab erreichbar, sichtbarer Fokus (`outline: 2px solid var(--accent)`), Tastenkürzel Strg+A/K/U für Markierungen.
 - Kontraste nach WCAG AA, Farbe nie einziger Bedeutungsträger (Merkmale V/A/K zusätzlich als Buchstabe in der Zelle).

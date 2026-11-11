@@ -8,7 +8,7 @@
     @update:visible="v => !v && emit('abbrechen')"
   >
     <p class="hinweis">
-      Wählen Sie den Startmonat. Der Abrechnungszeitraum umfasst sechs aufeinanderfolgende Monate.
+      Wähle den Startmonat. Der Abrechnungszeitraum umfasst sechs aufeinanderfolgende Monate.
     </p>
     <div class="feld">
       <label for="startmonat">Startmonat</label>

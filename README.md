@@ -2,6 +2,8 @@
 
 Web-Client und Desktop-App zur Erstellung der *Änderungsmitteilung Mehrarbeitsvergütung* an das LBV NRW. Löst das Delphi-Programm MA2 (vormals MA2LBV) ab.
 
+**Bedienungsanleitung:** [docs/index.md](docs/index.md) (Installation, Anmeldung, Einstellungen, Abrechnung, Fehlermeldungen, Umstieg von MA2).
+
 Architektur, Oberfläche und Analyse des Delphi-Codes stehen in den ADRs unter [docs/adr/](docs/adr/):
 
 - [ADR 001 – Architektur](docs/adr/adr001-architektur.md)

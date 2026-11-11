@@ -1,7 +1,7 @@
 // IMPRESSUM-DATEI
-// Bitte passen Sie diesen Text an Ihre Schuldaten an.
-// Sie können Markdown-Formatierung verwenden (**fett**, _kursiv_, ## Überschrift usw.)
-// Speichern Sie diese Datei als "impressum.js" im selben Verzeichnis.
+// Bitte passe diesen Text an deine Schuldaten an.
+// Du kannst Markdown-Formatierung verwenden (**fett**, _kursiv_, ## Überschrift usw.)
+// Speichere diese Datei als "impressum.js" im selben Verzeichnis.
 window.__IMPRESSUM_MARKDOWN__ = `**Herausgeber / Anbieter:**
 
 Beispiel-Gesamtschule Musterstadt
@@ -33,6 +33,6 @@ Website: www.stadt-musterstadt.de
 
 Diese Anwendung dient der Erstellung von Änderungsmitteilungen zur Mehrarbeitsvergütung der Beispiel-Gesamtschule Musterstadt an das LBV NRW. Es werden keine personenbezogenen Daten dauerhaft gespeichert.
 
-** Ändern Sie diese Datei auf Ihre Schuldaten und speichern Sie sie als impressum.js im Hauptverzeichnis der App. **
+** Ändere diese Datei auf deine Schuldaten und speichere sie als impressum.js im Hauptverzeichnis der App. **
 
 Stand: Juni 2026`;

@@ -100,7 +100,7 @@ async function loadImpressumScript(): Promise<string> {
       loadScript(fallback, () => {
         reject(new Error(
           'Weder "impressum.js" noch "impressum.example.js" wurden gefunden. ' +
-          'Bitte benennen Sie "impressum.example.js" in "impressum.js" um und tragen Sie Ihre Schuldaten ein.'
+          'Bitte benenne "impressum.example.js" in "impressum.js" um und trage deine Schuldaten ein.'
         ))
       })
     })

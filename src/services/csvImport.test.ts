@@ -15,7 +15,7 @@ describe('Dekodierung', () => {
 })
 
 describe('Untis-Stunden', () => {
-  it.each([['300000', '3,0'], ['250000', '2,5'], ['0', '0'], ['000', ''], ['2', '2'], ['', '']])('%s → "%s"', (a, b) => {
+  it.each([['300000', '3,0'], ['250000', '2,5'], ['0', '0'], ['000', ''], ['2', '2'], ['', ''], ['2.5', '2,5']])('%s → "%s"', (a, b) => {
     expect(untisStunden(a)).toBe(b)
   })
 })
@@ -70,6 +70,14 @@ describe('Format 2 (Alternativformat)', () => {
     expect(() => leseAbrechnung(text)).toThrow(ImportFehler)
     const gemischt = lade('Test_Abrechnung_Alternativformat.txt').replace('B 0312221,V,1,916', 'B 0312222,V,1,916')
     expect(() => leseAbrechnung(gemischt)).toThrow(/selben Lehrkraft/)
+  })
+})
+
+describe('Dezimalpunkt in der Datei', () => {
+  it('wird im Alternativformat als Komma übernommen', () => {
+    const kopf = 'Nachname,Vorname,Geburtsdatum,Personalnummer,Status,Schlüssel,Monat,Stunden,Merkmal'
+    const zeilen = ['816', '916', '1016', '1116', '1216', '117'].map((m, i) => `Neu,Nina,03.03.1995,B 0312222,V,1,${m},${i === 1 ? '2.5' : '3'},`)
+    expect(leseAbrechnung([kopf, ...zeilen].join('\n')).zeilen[0].monate[1].stunden).toBe('2,5')
   })
 })
 

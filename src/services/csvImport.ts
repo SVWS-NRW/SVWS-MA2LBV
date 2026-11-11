@@ -63,7 +63,8 @@ export function untisStunden(text: string): string {
     const wert = rundeHalbGerade((Number(h) / 100000) * 100) / 100
     h = wert.toFixed(1).replace('.', ',')
   }
-  return h === '000' ? '' : h
+  // Dezimalpunkt der Abrechnungsdatei ("2.5") wie in der Tabelle als Komma darstellen ("2,5")
+  return h === '000' ? '' : h.replace('.', ',')
 }
 
 function normalisiereKopf(zeile: string[]): string {
@@ -137,7 +138,7 @@ function leseFormat2(daten: string[][]): ImportErgebnis {
       lbvNummer: pnr,
       status: status === 'L' ? 'W' : status,
       verguetungsschluessel: feld(block[0], 5),
-      monate: block.map(z => ({ stunden: feld(z, 7), merkmal: feld(z, 8) })),
+      monate: block.map(z => ({ stunden: feld(z, 7).replace('.', ','), merkmal: feld(z, 8) })),
     })
   }
   return { format: 2, monate, zeilen, warnungen }

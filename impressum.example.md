@@ -29,6 +29,6 @@ Website: www.stadt-musterstadt.de
 
 Diese Anwendung dient der Erstellung von Änderungsmitteilungen zur Mehrarbeitsvergütung der Beispiel-Gesamtschule Musterstadt an das LBV NRW. Es werden keine personenbezogenen Daten dauerhaft gespeichert.
 
-** Ändern Sie diese Datei auf Ihre Schuldaten und speichern Sie sie als impressum.js im Hauptverzeichnis der App. **
+** Ändere diese Datei auf deine Schuldaten und speichere sie als impressum.js im Hauptverzeichnis der App. **
 
 Stand: Juni 2026
